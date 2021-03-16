@@ -175,79 +175,67 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.AWSMachineReconciler{
-		Client:           mgr.GetClient(),
-		Log:              ctrl.Log.WithName("controllers").WithName("AWSMachine"),
-		Recorder:         mgr.GetEventRecorderFor("awsmachine-controller"),
-		Endpoints:        AWSServiceEndpoints,
-		WatchFilterValue: watchFilterValue,
-	}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsMachineConcurrency, RecoverPanic: true}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AWSMachine")
-		os.Exit(1)
-	}
-	if err = (&controllers.AWSClusterReconciler{
-		Client:           mgr.GetClient(),
-		Recorder:         mgr.GetEventRecorderFor("awscluster-controller"),
-		Endpoints:        AWSServiceEndpoints,
-		WatchFilterValue: watchFilterValue,
-	}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency, RecoverPanic: true}); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AWSCluster")
-		os.Exit(1)
-	}
-	enableGates(ctx, mgr, AWSServiceEndpoints)
-
-	if err = (&infrav1.AWSMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplate")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSMachineTemplateList{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplateList")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSCluster{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSCluster")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterTemplate{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterTemplate")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterList{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterList")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterControllerIdentity{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterControllerIdentity")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterRoleIdentity{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterRoleIdentity")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterStaticIdentity{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterStaticIdentity")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSMachine{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachine")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSMachineList{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineList")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterControllerIdentityList{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterControllerIdentityList")
-		os.Exit(1)
-	}
-	if err = (&infrav1.AWSClusterRoleIdentityList{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterRoleIdentityList")
-		os.Exit(1)
-	}
-	if feature.Gates.Enabled(feature.EKS) {
-		setupLog.Info("enabling EKS webhooks")
-		if err := (&ekscontrolplanev1.AWSManagedControlPlane{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "AWSManagedControlPlane")
+	if webhookPort == 0 {
+		if err = (&controllers.AWSMachineReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSMachine"),
+			Recorder:         mgr.GetEventRecorderFor("awsmachine-controller"),
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsMachineConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSMachine")
+			os.Exit(1)
+		}
+		if err = (&controllers.AWSClusterReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSCluster"),
+			Recorder:         mgr.GetEventRecorderFor("awscluster-controller"),
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSCluster")
+			os.Exit(1)
+		}
+		enableGates(mgr, AWSServiceEndpoints, watchFilterValue)
+	} else {
+		if err = (&infrav1alpha3.AWSMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplate")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSMachineTemplateList{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplateList")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSCluster{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSCluster")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSClusterControllerIdentity{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterControllerIdentity")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSClusterRoleIdentity{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterRoleIdentity")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSMachine{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachine")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSMachineList{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineList")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSClusterList{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterList")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSClusterControllerIdentityList{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterControllerIdentityList")
+			os.Exit(1)
+		}
+		if err = (&infrav1alpha3.AWSClusterRoleIdentityList{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSClusterRoleIdentityList")
 			os.Exit(1)
 		}
 		if feature.Gates.Enabled(feature.EKSFargate) {
@@ -290,7 +278,7 @@ func main() {
 	}
 }
 
-func enableGates(ctx context.Context, mgr ctrl.Manager, awsServiceEndpoints []scope.ServiceEndpoint) {
+func enableGates(mgr ctrl.Manager, AWSServiceEndpoints []scope.ServiceEndpoint, watchFilterValue string) {
 	if feature.Gates.Enabled(feature.EKS) {
 		setupLog.Info("enabling EKS controllers")
 
@@ -308,25 +296,24 @@ func enableGates(ctx context.Context, mgr ctrl.Manager, awsServiceEndpoints []sc
 			os.Exit(1)
 		}
 
-		setupLog.V(2).Info("enabling EKS control plane controller")
-		if err := (&ekscontrolplanecontrollers.AWSManagedControlPlaneReconciler{
-			Client:               mgr.GetClient(),
-			EnableIAM:            enableIAM,
-			AllowAdditionalRoles: allowAddRoles,
-			Endpoints:            awsServiceEndpoints,
-			WatchFilterValue:     watchFilterValue,
-		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency, RecoverPanic: true}); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "AWSManagedControlPlane")
+		if err := (&controllersexp.AWSManagedMachinePoolReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSManagedMachinePool"),
+			Recorder:         mgr.GetEventRecorderFor("awsmanagedmachinepool-reconciler"),
+			EnableIAM:        enableIAM,
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(mgr, controller.Options{}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSManagedMachinePool")
 			os.Exit(1)
 		}
-
-		setupLog.V(2).Info("enabling EKS bootstrap controller")
-		if err := (&eksbootstrapcontrollers.EKSConfigReconciler{
+		if err := (&controllersexp.AWSManagedClusterReconciler{
 			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSManagedCluster"),
+			Recorder:         mgr.GetEventRecorderFor("awsmanagedcluster-reconciler"),
 			WatchFilterValue: watchFilterValue,
-		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency, RecoverPanic: true}); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "EKSConfig")
-			os.Exit(1)
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSManagedCluster")
 		}
 
 		if feature.Gates.Enabled(feature.EKSFargate) {
@@ -358,12 +345,12 @@ func enableGates(ctx context.Context, mgr ctrl.Manager, awsServiceEndpoints []sc
 		}
 	}
 	if feature.Gates.Enabled(feature.MachinePool) {
-		setupLog.V(2).Info("enabling machine pool controller")
-		if err := (&expcontrollers.AWSMachinePoolReconciler{
+		if err := (&controllersexp.AWSMachinePoolReconciler{
 			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSMachinePool"),
 			Recorder:         mgr.GetEventRecorderFor("awsmachinepool-controller"),
 			WatchFilterValue: watchFilterValue,
-		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: instanceStateConcurrency, RecoverPanic: true}); err != nil {
+		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSMachinePool")
 			os.Exit(1)
 		}
@@ -373,9 +360,9 @@ func enableGates(ctx context.Context, mgr ctrl.Manager, awsServiceEndpoints []sc
 		if err := (&instancestate.AwsInstanceStateReconciler{
 			Client:           mgr.GetClient(),
 			Log:              ctrl.Log.WithName("controllers").WithName("AWSInstanceStateController"),
-			Endpoints:        awsServiceEndpoints,
+			Endpoints:        AWSServiceEndpoints,
 			WatchFilterValue: watchFilterValue,
-		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: instanceStateConcurrency, RecoverPanic: true}); err != nil {
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: instanceStateConcurrency}); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSInstanceStateController")
 			os.Exit(1)
 		}
@@ -414,6 +401,12 @@ func initFlags(fs *pflag.FlagSet) {
 		"",
 		"Namespace that the controller watches to reconcile cluster-api objects. If unspecified, the controller watches for cluster-api objects across all namespaces.",
 	)
+
+	fs.StringVar(
+		&watchFilterValue,
+		"watch-filter",
+		"",
+		fmt.Sprintf("Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.", clusterv1.WatchLabel))
 
 	fs.StringVar(
 		&leaderElectionNamespace,

@@ -49,6 +49,8 @@ import (
 // EKSConfigReconciler reconciles a EKSConfig object.
 type EKSConfigReconciler struct {
 	client.Client
+
+	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	WatchFilterValue string
 }
@@ -212,7 +214,7 @@ func (r *EKSConfigReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Man
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&eksbootstrapv1.EKSConfig{}).
 		WithOptions(option).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(ctrl.LoggerFrom(ctx), r.WatchFilterValue)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		Watches(
 			&source.Kind{Type: &clusterv1.Machine{}},
 			handler.EnqueueRequestsFromMapFunc(r.MachineToBootstrapMapFunc),

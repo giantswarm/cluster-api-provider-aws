@@ -83,7 +83,13 @@ func (r *AWSManagedControlPlaneReconciler) SetupWithManager(ctx context.Context,
 	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(awsManagedControlPlane).
 		WithOptions(options).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(log, r.WatchFilterValue)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
+		Watches(
+			&source.Kind{Type: &infrav1exp.AWSManagedCluster{}},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(r.managedClusterToManagedControlPlane),
+			},
+		).
 		Build(r)
 
 	if err != nil {
@@ -92,8 +98,10 @@ func (r *AWSManagedControlPlaneReconciler) SetupWithManager(ctx context.Context,
 
 	if err = c.Watch(
 		&source.Kind{Type: &clusterv1.Cluster{}},
-		handler.EnqueueRequestsFromMapFunc(util.ClusterToInfrastructureMapFunc(awsManagedControlPlane.GroupVersionKind())),
-		predicates.ClusterUnpausedAndInfrastructureReady(log),
+		&handler.EnqueueRequestsFromMapFunc{
+			ToRequests: util.ClusterToInfrastructureMapFunc(awsManagedControlPlane.GroupVersionKind()),
+		},
+		predicates.All(r.Log, predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue), predicates.ClusterUnpausedAndInfrastructureReady(r.Log)),
 	); err != nil {
 		return fmt.Errorf("failed adding a watch for ready clusters: %w", err)
 	}

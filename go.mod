@@ -137,3 +137,5 @@ require (
 	sigs.k8s.io/kind v0.11.1 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 )
+
+replace sigs.k8s.io/cluster-api => github.com/giantswarm/cluster-api v0.3.10-0.20210315183214-1f96eea1165d

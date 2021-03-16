@@ -48,11 +48,12 @@ import (
 // AWSManagedMachinePoolReconciler reconciles a AWSManagedMachinePool object.
 type AWSManagedMachinePoolReconciler struct {
 	client.Client
-	Recorder             record.EventRecorder
-	Endpoints            []scope.ServiceEndpoint
-	EnableIAM            bool
-	AllowAdditionalRoles bool
-	WatchFilterValue     string
+	Log       logr.Logger
+	Recorder  record.EventRecorder
+	Endpoints []scope.ServiceEndpoint
+
+	EnableIAM        bool
+	WatchFilterValue string
 }
 
 // SetupWithManager is used to setup the controller.
@@ -67,7 +68,7 @@ func (r *AWSManagedMachinePoolReconciler) SetupWithManager(ctx context.Context, 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&expinfrav1.AWSManagedMachinePool{}).
 		WithOptions(options).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(log, r.WatchFilterValue)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		Watches(
 			&source.Kind{Type: &expclusterv1.MachinePool{}},
 			handler.EnqueueRequestsFromMapFunc(machinePoolToInfrastructureMapFunc(gvk)),

@@ -59,6 +59,7 @@ type AWSMachinePoolReconciler struct {
 	WatchFilterValue  string
 	asgServiceFactory func(cloud.ClusterScoper) services.ASGInterface
 	ec2ServiceFactory func(scope.EC2Scope) services.EC2MachineInterface
+	WatchFilterValue  string
 }
 
 func (r *AWSMachinePoolReconciler) getASGService(scope cloud.ClusterScoper) services.ASGInterface {
@@ -184,7 +185,7 @@ func (r *AWSMachinePoolReconciler) SetupWithManager(ctx context.Context, mgr ctr
 			&source.Kind{Type: &expclusterv1.MachinePool{}},
 			handler.EnqueueRequestsFromMapFunc(machinePoolToInfrastructureMapFunc(expinfrav1.GroupVersion.WithKind("AWSMachinePool"))),
 		).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(ctrl.LoggerFrom(ctx), r.WatchFilterValue)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		Complete(r)
 }
 
