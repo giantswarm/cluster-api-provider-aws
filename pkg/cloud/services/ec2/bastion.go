@@ -73,8 +73,10 @@ func (s *Service) ReconcileBastion(cluster *clusterv1.Cluster, k8sClient client.
 	}
 
 	// Describe bastion instance, if any.
+	s.scope.V(2).Info("Bastion exists?")
 	instance, err := s.describeBastionInstance()
 	if awserrors.IsNotFound(err) { // nolint:nestif
+		s.scope.V(2).Info("Bastion not found: creating")
 		if !conditions.Has(s.scope.InfraCluster(), infrav1.BastionHostReadyCondition) {
 			conditions.MarkFalse(s.scope.InfraCluster(), infrav1.BastionHostReadyCondition, infrav1.BastionCreationStartedReason, clusterv1.ConditionSeverityInfo, "")
 			if err := s.scope.PatchObject(); err != nil {
@@ -87,17 +89,20 @@ func (s *Service) ReconcileBastion(cluster *clusterv1.Cluster, k8sClient client.
 			Namespace: cluster.Spec.ControlPlaneRef.Namespace,
 			Name:      cluster.Spec.ControlPlaneRef.Name,
 		}
+		s.scope.V(2).Info(fmt.Sprintf("Prepare bastion: get %s/%s", key.Namespace, key.Name))
 
 		if err := k8sClient.Get(context.Background(), key, cp); err != nil {
 			return err
 		}
 
+		s.scope.V(2).Info("Bastion getDefaultBastion")
 		instance, err := s.getDefaultBastion(s.scope.Bastion().InstanceType, s.scope.Bastion().AMI, cp)
 		if err != nil {
 			record.Warnf(s.scope.InfraCluster(), "FailedCreateBastion", "Failed to get bastion instance: %v", err)
 			return err
 		}
 
+		s.scope.V(2).Info("Bastion runInstance")
 		instance, err = s.runInstance("bastion", instance)
 		if err != nil {
 			record.Warnf(s.scope.InfraCluster(), "FailedCreateBastion", "Failed to create bastion instance: %v", err)
