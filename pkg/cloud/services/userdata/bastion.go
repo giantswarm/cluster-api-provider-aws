@@ -73,22 +73,27 @@ func NewBastion(input *BastionInput) (string, error) {
 
 	multi := multipart.NewWriter(b)
 
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Type", `multipart/mixed; boundary="`+multi.Boundary()+`"`)
+	_, err = b.Write([]byte(`Content-Type: multipart/mixed; boundary="` + multi.Boundary() + `"`))
+	_, err = b.Write([]byte{'\n'})
+	_, err = b.Write([]byte("MIME-Version: 1.0\n"))
+	_, err = b.Write([]byte("Number-Attachments: 2\n"))
+	_, err = b.Write([]byte{'\n'})
+
+	//h := make(textproto.MIMEHeader)
+	//h.Set("Content-Type", `multipart/mixed; boundary="`+multi.Boundary()+`"`)
 	//h.Set("MIME-Version", "1.0")
+	//w, err := multi.CreatePart(h)
+	//if err != nil {
+	//	return "", err
+	//}
 
-	w, err := multi.CreatePart(h)
-	if err != nil {
-		return "", err
-	}
-
-	h = make(textproto.MIMEHeader)
+	h := make(textproto.MIMEHeader)
 	h.Set("Content-Type", `text/cloud-config; charset="us-ascii"`)
 	//h.Set("MIME-Version", "1.0")
 	h.Set("Content-Transfer-Encoding", "7bit")
 	h.Set("Content-Disposition", `attachment; filename="cloud-config.txt"`)
 
-	w, err = multi.CreatePart(h)
+	w, err := multi.CreatePart(h)
 	if err != nil {
 		return "", err
 	}
