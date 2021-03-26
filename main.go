@@ -37,6 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
+	kubeadmv1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1alpha3"
+
 	infrav1alpha2 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha2"
 	infrav1alpha3 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-aws/controllers"
@@ -64,6 +66,7 @@ func init() {
 	_ = clusterv1.AddToScheme(scheme)
 	_ = controlplanev1.AddToScheme(scheme)
 	_ = clusterv1exp.AddToScheme(scheme)
+	_ = kubeadmv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
