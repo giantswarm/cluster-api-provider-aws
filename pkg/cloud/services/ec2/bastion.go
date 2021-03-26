@@ -17,16 +17,21 @@ limitations under the License.
 package ec2
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
+	controlplanev1 "sigs.k8s.io/cluster-api/controlplane/kubeadm/api/v1alpha3"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"sigs.k8s.io/cluster-api/util/conditions"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/filter"
@@ -44,7 +49,7 @@ var (
 )
 
 // ReconcileBastion ensures a bastion is created for the cluster
-func (s *Service) ReconcileBastion() error {
+func (s *Service) ReconcileBastion(cluster *clusterv1.Cluster, k8sClient client.Client) error {
 	if !s.scope.Bastion().Enabled {
 		s.scope.V(4).Info("Skipping bastion reconcile")
 		_, err := s.describeBastionInstance()
@@ -76,7 +81,24 @@ func (s *Service) ReconcileBastion() error {
 				return errors.Wrap(err, "failed to patch conditions")
 			}
 		}
-		instance, err = s.runInstance("bastion", s.getDefaultBastion(s.scope.Bastion().InstanceType, s.scope.Bastion().AMI))
+
+		cp := &controlplanev1.KubeadmControlPlane{}
+		key := client.ObjectKey{
+			Namespace: cluster.Spec.ControlPlaneRef.Namespace,
+			Name:      cluster.Spec.ControlPlaneRef.Name,
+		}
+
+		if err := k8sClient.Get(context.Background(), key, cp); err != nil {
+			return err
+		}
+
+		instance, err := s.getDefaultBastion(s.scope.Bastion().InstanceType, s.scope.Bastion().AMI, cp)
+		if err != nil {
+			record.Warnf(s.scope.InfraCluster(), "FailedCreateBastion", "Failed to get bastion instance: %v", err)
+			return err
+		}
+
+		instance, err = s.runInstance("bastion", instance)
 		if err != nil {
 			record.Warnf(s.scope.InfraCluster(), "FailedCreateBastion", "Failed to create bastion instance: %v", err)
 			return err
@@ -158,9 +180,21 @@ func (s *Service) describeBastionInstance() (*infrav1.Instance, error) {
 	return nil, awserrors.NewNotFound("bastion host not found")
 }
 
-func (s *Service) getDefaultBastion(instanceType, ami string) *infrav1.Instance {
+func (s *Service) getDefaultBastion(instanceType, ami string, cp *controlplanev1.KubeadmControlPlane) (*infrav1.Instance, error) {
 	name := fmt.Sprintf("%s-bastion", s.scope.Name())
-	userData, _ := userdata.NewBastion(&userdata.BastionInput{})
+	input := &userdata.BastionInput{}
+	for _, file := range cp.Spec.KubeadmConfigSpec.Files {
+		input.WriteFiles = append(input.WriteFiles, userdata.Files{
+			Content:     file.Content,
+			Owner:       file.Owner,
+			Path:        file.Path,
+			Permissions: file.Permissions,
+		})
+	}
+	userData, err := userdata.NewBastion(input)
+	if err != nil {
+		return nil, err
+	}
 
 	// If SSHKeyName WAS NOT provided, use the defaultSSHKeyName
 	keyName := s.scope.SSHKeyName()
@@ -200,5 +234,5 @@ func (s *Service) getDefaultBastion(instanceType, ami string) *infrav1.Instance 
 		}),
 	}
 
-	return i
+	return i, nil
 }

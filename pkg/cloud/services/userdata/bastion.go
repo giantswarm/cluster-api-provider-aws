@@ -16,6 +16,12 @@ limitations under the License.
 
 package userdata
 
+import (
+	"bytes"
+	"mime/multipart"
+	"net/textproto"
+)
+
 const (
 	bastionBashScript = `{{.Header}}
 
@@ -31,6 +37,10 @@ pip install --upgrade pip &> /dev/null
 
 ./$BASTION_BOOTSTRAP_FILE --enable true
 `
+
+	bastionCloudConfig = `#cloud-config
+{{template "files" .WriteFiles}}
+`
 )
 
 // BastionInput defines the context to generate a bastion instance user data.
@@ -39,7 +49,75 @@ type BastionInput struct {
 }
 
 // NewBastion returns the user data string to be used on a bastion instance.
-func NewBastion(input *BastionInput) (string, error) {
+func NewScript(input *BastionInput) (string, error) {
 	input.Header = defaultHeader
 	return generate("bastion", bastionBashScript, input)
+}
+
+func NewCloudConfig(input *BastionInput) (string, error) {
+	return generate("cloudconfig", bastionCloudConfig, input)
+}
+
+func NewBastion(input *BastionInput) (string, error) {
+	cloudConfig, err := NewCloudConfig(input)
+	if err != nil {
+		return "", err
+	}
+
+	script, err := NewScript(input)
+	if err != nil {
+		return "", err
+	}
+
+	b := new(bytes.Buffer)
+
+	multi := multipart.NewWriter(b)
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Type", `multipart/mixed; boundary="`+multi.Boundary()+`"`)
+	//h.Set("MIME-Version", "1.0")
+
+	w, err := multi.CreatePart(h)
+	if err != nil {
+		return "", err
+	}
+
+	h = make(textproto.MIMEHeader)
+	h.Set("Content-Type", `text/cloud-config; charset="us-ascii"`)
+	//h.Set("MIME-Version", "1.0")
+	h.Set("Content-Transfer-Encoding", "7bit")
+	h.Set("Content-Disposition", `attachment; filename="cloud-config.txt"`)
+
+	w, err = multi.CreatePart(h)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = w.Write([]byte(cloudConfig))
+	if err != nil {
+		return "", err
+	}
+
+	h = make(textproto.MIMEHeader)
+	h.Set("Content-Type", `text/x-shellscript; charset="us-ascii"`)
+	//h.Set("MIME-Version", "1.0")
+	h.Set("Content-Transfer-Encoding", "7bit")
+	h.Set("Content-Disposition", `attachment; filename="userdata.txt"`)
+
+	w, err = multi.CreatePart(h)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = w.Write([]byte(script))
+	if err != nil {
+		return "", err
+	}
+
+	err = multi.Close()
+	if err != nil {
+		return "", err
+	}
+
+	return b.String(), nil
 }
