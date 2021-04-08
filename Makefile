@@ -80,6 +80,7 @@ STAGING_BUCKET ?= artifacts.k8s-staging-cluster-api-aws.appspot.com
 BUCKET ?= $(STAGING_BUCKET)
 PROD_REGISTRY := us.gcr.io/k8s-artifacts-prod/cluster-api-aws
 REGISTRY ?= quay.io
+REGISTRY_CHINA ?= registry-intl.cn-shanghai.aliyuncs.com
 RELEASE_TAG ?= $(shell git describe --abbrev=0 2>/dev/null)
 PULL_BASE_REF ?= $(RELEASE_TAG) # PULL_BASE_REF will be provided by Prow
 RELEASE_ALIAS_TAG ?= $(PULL_BASE_REF)
@@ -96,6 +97,7 @@ ALL_ARCH ?= amd64 arm arm64 ppc64le s390x
 # main controller
 CORE_IMAGE_NAME ?= cluster-api-aws-controller
 CORE_CONTROLLER_IMG ?= $(REGISTRY)/giantswarm/$(CORE_IMAGE_NAME)
+CORE_CONTROLLER_IMG_CHINA ?= $(REGISTRY_CHINA)/giantswarm/$(CORE_IMAGE_NAME)
 CORE_CONTROLLER_ORIGINAL_IMG := gcr.io/k8s-staging-cluster-api-aws/cluster-api-aws-controller
 CORE_CONTROLLER_NAME := capa-controller-manager
 CORE_MANIFEST_FILE := infrastructure-components
@@ -345,6 +347,7 @@ docker-build:
 .PHONY: docker-build-core
 docker-build-core: docker-pull-prerequisites ## Build the docker image for controller-manager
 	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
 
 .PHONY: docker-build-eks-bootstrap
 docker-build-eks-bootstrap: docker-pull-prerequisites
