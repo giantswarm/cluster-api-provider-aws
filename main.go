@@ -315,33 +315,15 @@ func enableGates(mgr ctrl.Manager, AWSServiceEndpoints []scope.ServiceEndpoint, 
 		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSManagedCluster")
 		}
-
-		if feature.Gates.Enabled(feature.EKSFargate) {
-			setupLog.V(2).Info("enabling EKS fargate profile controller")
-			if err := (&expcontrollers.AWSFargateProfileReconciler{
-				Client:           mgr.GetClient(),
-				Recorder:         mgr.GetEventRecorderFor("awsfargateprofile-reconciler"),
-				EnableIAM:        enableIAM,
-				Endpoints:        awsServiceEndpoints,
-				WatchFilterValue: watchFilterValue,
-			}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency, RecoverPanic: true}); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSFargateProfile")
-			}
-		}
-
-		if feature.Gates.Enabled(feature.MachinePool) {
-			setupLog.V(2).Info("enabling EKS managed machine pool controller")
-			if err := (&expcontrollers.AWSManagedMachinePoolReconciler{
-				AllowAdditionalRoles: allowAddRoles,
-				Client:               mgr.GetClient(),
-				EnableIAM:            enableIAM,
-				Endpoints:            awsServiceEndpoints,
-				Recorder:             mgr.GetEventRecorderFor("awsmanagedmachinepool-reconciler"),
-				WatchFilterValue:     watchFilterValue,
-			}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: instanceStateConcurrency, RecoverPanic: true}); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSManagedMachinePool")
-				os.Exit(1)
-			}
+		if err := (&controllersexp.AWSFargateProfileReconciler{
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSFargateProfile"),
+			Recorder:         mgr.GetEventRecorderFor("awsfargateprofile-reconciler"),
+			EnableIAM:        enableIAM,
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
+		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSFargateProfile")
 		}
 	}
 	if feature.Gates.Enabled(feature.MachinePool) {
@@ -372,9 +354,9 @@ func enableGates(mgr ctrl.Manager, AWSServiceEndpoints []scope.ServiceEndpoint, 
 		if err := (&controlleridentitycreator.AWSControllerIdentityReconciler{
 			Client:           mgr.GetClient(),
 			Log:              ctrl.Log.WithName("controllers").WithName("AWSControllerIdentity"),
-			Endpoints:        awsServiceEndpoints,
+			Endpoints:        AWSServiceEndpoints,
 			WatchFilterValue: watchFilterValue,
-		}).SetupWithManager(ctx, mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency, RecoverPanic: true}); err != nil {
+		}).SetupWithManager(mgr, controller.Options{}); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSControllerIdentity")
 			os.Exit(1)
 		}

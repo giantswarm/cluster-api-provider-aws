@@ -44,8 +44,10 @@ import (
 // AWSFargateProfileReconciler reconciles a AWSFargateProfile object.
 type AWSFargateProfileReconciler struct {
 	client.Client
-	Recorder         record.EventRecorder
-	Endpoints        []scope.ServiceEndpoint
+	Log       logr.Logger
+	Recorder  record.EventRecorder
+	Endpoints []scope.ServiceEndpoint
+
 	EnableIAM        bool
 	WatchFilterValue string
 }
@@ -56,7 +58,7 @@ func (r *AWSFargateProfileReconciler) SetupWithManager(ctx context.Context, mgr 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&expinfrav1.AWSFargateProfile{}).
 		WithOptions(options).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(ctrl.LoggerFrom(ctx), r.WatchFilterValue)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		Watches(
 			&source.Kind{Type: &ekscontrolplanev1.AWSManagedControlPlane{}},
 			handler.EnqueueRequestsFromMapFunc(managedControlPlaneToFargateProfileMap),

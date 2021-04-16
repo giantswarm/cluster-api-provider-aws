@@ -24,8 +24,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1beta1"
-	ekscontrolplanev1 "sigs.k8s.io/cluster-api-provider-aws/controlplane/eks/api/v1beta1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
+	controlplanev1 "sigs.k8s.io/cluster-api-provider-aws/controlplane/eks/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-aws/feature"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api/util/predicates"
@@ -134,7 +134,7 @@ func (r *AWSControllerIdentityReconciler) SetupWithManager(ctx context.Context, 
 	controller := ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.AWSCluster{}).
 		WithOptions(options).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(ctrl.LoggerFrom(ctx), r.WatchFilterValue))
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue))
 
 	if feature.Gates.Enabled(feature.EKS) {
 		controller.Watches(
