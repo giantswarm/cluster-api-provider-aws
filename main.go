@@ -196,61 +196,7 @@ func main() {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSCluster")
 			os.Exit(1)
 		}
-<<<<<<< HEAD
 		enableGates(mgr, AWSServiceEndpoints, watchFilterValue)
-=======
-
-		if feature.Gates.Enabled(feature.EKS) {
-			setupLog.Info("enabling EKS controllers")
-
-			enableIAM := feature.Gates.Enabled(feature.EKSEnableIAM)
-
-			if err = (&controllersexp.AWSManagedMachinePoolReconciler{
-				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("AWSManagedMachinePool"),
-				Recorder:         mgr.GetEventRecorderFor("awsmanagedmachinepool-reconciler"),
-				EnableIAM:        enableIAM,
-				Endpoints:        AWSServiceEndpoints,
-				WatchFilterValue: watchFilterValue,
-			}).SetupWithManager(mgr, controller.Options{}); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSManagedMachinePool")
-				os.Exit(1)
-			}
-			if err = (&controllersexp.AWSManagedClusterReconciler{
-				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("AWSManagedCluster"),
-				Recorder:         mgr.GetEventRecorderFor("awsmanagedcluster-reconciler"),
-				WatchFilterValue: watchFilterValue,
-			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSManagedCluster")
-			}
-		}
-		if feature.Gates.Enabled(feature.MachinePool) {
-			if err = (&controllersexp.AWSMachinePoolReconciler{
-				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("AWSMachinePool"),
-				Recorder:         mgr.GetEventRecorderFor("awsmachinepool-controller"),
-				WatchFilterValue: watchFilterValue,
-			}).SetupWithManager(mgr); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSMachinePool")
-				os.Exit(1)
-			}
-		}
-
-		if feature.Gates.Enabled(feature.EventBridgeInstanceState) {
-			setupLog.Info("EventBridge notifications enabled. enabling AWSInstanceStateController")
-			if err = (&instancestate.AwsInstanceStateReconciler{
-				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("AWSInstanceStateController"),
-				Endpoints:        AWSServiceEndpoints,
-				WatchFilterValue: watchFilterValue,
-			}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: instanceStateConcurrency}); err != nil {
-				setupLog.Error(err, "unable to create controller", "controller", "AWSInstanceStateController")
-				os.Exit(1)
-			}
-		}
-
->>>>>>> 668d0a6e (Use label filter)
 	} else {
 		if err = (&infrav1alpha3.AWSMachineTemplate{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplate")
