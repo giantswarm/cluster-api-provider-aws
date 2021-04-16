@@ -271,11 +271,12 @@ func enableGates(mgr ctrl.Manager, AWSServiceEndpoints []scope.ServiceEndpoint, 
 			setupLog.Error(err, "unable to create controller", "controller", "AWSManagedCluster")
 		}
 		if err := (&controllersexp.AWSFargateProfileReconciler{
-			Client:    mgr.GetClient(),
-			Log:       ctrl.Log.WithName("controllers").WithName("AWSFargateProfile"),
-			Recorder:  mgr.GetEventRecorderFor("awsfargateprofile-reconciler"),
-			EnableIAM: enableIAM,
-			Endpoints: AWSServiceEndpoints,
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSFargateProfile"),
+			Recorder:         mgr.GetEventRecorderFor("awsfargateprofile-reconciler"),
+			EnableIAM:        enableIAM,
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
 		}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: awsClusterConcurrency}); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSFargateProfile")
 		}
@@ -306,9 +307,10 @@ func enableGates(mgr ctrl.Manager, AWSServiceEndpoints []scope.ServiceEndpoint, 
 	if feature.Gates.Enabled(feature.AutoControllerIdentityCreator) {
 		setupLog.Info("AutoControllerIdentityCreator enabled")
 		if err := (&controlleridentitycreator.AWSControllerIdentityReconciler{
-			Client:    mgr.GetClient(),
-			Log:       ctrl.Log.WithName("controllers").WithName("AWSControllerIdentity"),
-			Endpoints: AWSServiceEndpoints,
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("AWSControllerIdentity"),
+			Endpoints:        AWSServiceEndpoints,
+			WatchFilterValue: watchFilterValue,
 		}).SetupWithManager(mgr, controller.Options{}); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AWSControllerIdentity")
 			os.Exit(1)

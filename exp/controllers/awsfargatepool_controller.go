@@ -49,7 +49,8 @@ type AWSFargateProfileReconciler struct {
 	Recorder  record.EventRecorder
 	Endpoints []scope.ServiceEndpoint
 
-	EnableIAM bool
+	EnableIAM        bool
+	WatchFilterValue string
 }
 
 // SetupWithManager is used to setup the controller
@@ -58,7 +59,7 @@ func (r *AWSFargateProfileReconciler) SetupWithManager(mgr ctrl.Manager, options
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1exp.AWSFargateProfile{}).
 		WithOptions(options).
-		WithEventFilter(predicates.ResourceNotPaused(r.Log)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		Watches(
 			&source.Kind{Type: &controlplanev1.AWSManagedControlPlane{}},
 			&handler.EnqueueRequestsFromMapFunc{

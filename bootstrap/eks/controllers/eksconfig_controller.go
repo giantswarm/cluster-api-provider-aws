@@ -241,7 +241,7 @@ func (r *EKSConfigReconciler) SetupWithManager(mgr ctrl.Manager, option controll
 		&handler.EnqueueRequestsFromMapFunc{
 			ToRequests: handler.ToRequestsFunc(r.ClusterToEKSConfigs),
 		},
-		predicates.ClusterUnpausedAndInfrastructureReady(r.Log),
+		predicates.All(r.Log, predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue), predicates.ClusterUnpausedAndInfrastructureReady(r.Log)),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed adding watch for Clusters to controller manager")
