@@ -68,6 +68,7 @@ var (
 	metricsAddr                string
 	enableLeaderElection       bool
 	watchNamespace             string
+	watchFilterValue           string
 	profilerAddress            string
 	eksControlPlaneConcurrency int
 	syncPeriod                 time.Duration
@@ -89,6 +90,9 @@ func InitFlags(fs *pflag.FlagSet) {
 
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile objects. If unspecified, the controller watches for objects across all namespaces.")
+
+	fs.StringVar(&watchFilterValue, "watch-filter", "",
+		"Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.")
 
 	fs.StringVar(&profilerAddress, "profiler-address", "",
 		"Bind address to expose the pprof profiler (e.g. localhost:6060)")
@@ -212,6 +216,7 @@ func setupReconcilers(mgr ctrl.Manager, enableIAM bool, allowAddRoles bool, serv
 		EnableIAM:            enableIAM,
 		AllowAdditionalRoles: allowAddRoles,
 		Endpoints:            serviceEndpoints,
+		WatchFilterValue:     watchFilterValue,
 	}).SetupWithManager(mgr, concurrency(eksControlPlaneConcurrency)); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSManagedControlPlane")
 		os.Exit(1)

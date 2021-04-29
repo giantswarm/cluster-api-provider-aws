@@ -68,6 +68,7 @@ var (
 	leaderElectionRenewDeadline time.Duration
 	leaderElectionRetryPeriod   time.Duration
 	watchNamespace              string
+	watchFilterValue            string
 	profilerAddress             string
 	eksConfigConcurrency        int
 	syncPeriod                  time.Duration
@@ -92,6 +93,9 @@ func InitFlags(fs *pflag.FlagSet) {
 
 	fs.StringVar(&watchNamespace, "namespace", "",
 		"Namespace that the controller watches to reconcile objects. If unspecified, the controller watches for objects across all namespaces.")
+
+	fs.StringVar(&watchFilterValue, "watch-filter", "",
+		"Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.")
 
 	fs.StringVar(&profilerAddress, "profiler-address", "",
 		"Bind address to expose the pprof profiler (e.g. localhost:6060)")
@@ -160,8 +164,9 @@ func setupReconcilers(mgr ctrl.Manager) {
 	}
 
 	if err := (&bootstrapv1controllers.EKSConfigReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("EKSConfig"),
+		Client:           mgr.GetClient(),
+		Log:              ctrl.Log.WithName("controllers").WithName("EKSConfig"),
+		WatchFilterValue: watchFilterValue,
 	}).SetupWithManager(mgr, concurrency(eksConfigConcurrency)); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "EKSConfig")
 		os.Exit(1)
