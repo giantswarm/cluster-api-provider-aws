@@ -99,7 +99,8 @@ CORE_NAMESPACE := capa-system
 
 # bootstrap
 EKS_BOOTSTRAP_IMAGE_NAME ?= eks-bootstrap-controller
-EKS_BOOTSTRAP_CONTROLLER_IMG ?= $(REGISTRY)/$(EKS_BOOTSTRAP_IMAGE_NAME)
+EKS_BOOTSTRAP_CONTROLLER_IMG ?= $(REGISTRY)/giantswarm/$(EKS_BOOTSTRAP_IMAGE_NAME)
+EKS_BOOTSTRAP_CONTROLLER_IMG_CHINA ?= $(REGISTRY_CHINA)/giantswarm/$(EKS_BOOTSTRAP_IMAGE_NAME)
 EKS_BOOTSTRAP_CONTROLLER_ORIGINAL_IMG := gcr.io/k8s-staging-cluster-api-aws/eks-bootstrap-controller
 EKS_BOOTSTRAP_CONTROLLER_NAME := capa-eks-bootstrap-controller-manager
 EKS_BOOTSTRAP_MANIFEST_FILE := eks-bootstrap-components
@@ -108,7 +109,8 @@ EKS_BOOTSTRAP_NAMESPACE := capa-eks-bootstrap-system
 
 # bootstrap
 EKS_CONTROLPLANE_IMAGE_NAME ?= eks-controlplane-controller
-EKS_CONTROLPLANE_CONTROLLER_IMG ?= $(REGISTRY)/$(EKS_CONTROLPLANE_IMAGE_NAME)
+EKS_CONTROLPLANE_CONTROLLER_IMG ?= $(REGISTRY)/giantswarm/$(EKS_CONTROLPLANE_IMAGE_NAME)
+EKS_CONTROLPLANE_CONTROLLER_IMG_CHINA ?= $(REGISTRY_CHINA)/giantswarm/$(EKS_CONTROLPLANE_IMAGE_NAME)
 EKS_CONTROLPLANE_CONTROLLER_ORIGINAL_IMG := gcr.io/k8s-staging-cluster-api-aws/eks-controlplane-controller
 EKS_CONTROLPLANE_CONTROLLER_NAME := capa-eks-control-plane-controller-manager
 EKS_CONTROLPLANE_MANIFEST_FILE := eks-controlplane-components
@@ -335,10 +337,12 @@ docker-build-core: docker-pull-prerequisites ## Build the docker image for contr
 .PHONY: docker-build-eks-bootstrap
 docker-build-eks-bootstrap: docker-pull-prerequisites
 	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
 
 .PHONY: docker-build-eks-controlplane
 docker-build-eks-controlplane: docker-pull-prerequisites
 	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
