@@ -33,6 +33,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/predicates"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,9 +58,10 @@ import (
 // AWSClusterReconciler reconciles a AwsCluster object
 type AWSClusterReconciler struct {
 	client.Client
-	Recorder  record.EventRecorder
-	Log       logr.Logger
-	Endpoints []scope.ServiceEndpoint
+	Recorder         record.EventRecorder
+	Log              logr.Logger
+	Endpoints        []scope.ServiceEndpoint
+	WatchFilterValue string
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=awsclusters,verbs=get;list;watch;create;update;patch;delete
@@ -223,7 +225,7 @@ func reconcileNormal(clusterScope *scope.ClusterScope) (reconcile.Result, error)
 		return reconcile.Result{}, err
 	}
 
-	if err := ec2Service.ReconcileBastion(); err != nil {
+	if err := ec2Service.ReconcileBastion(clusterScope.Cluster, clusterScope.Client()); err != nil {
 		conditions.MarkFalse(awsCluster, infrav1.BastionHostReadyCondition, infrav1.BastionHostFailedReason, clusterv1.ConditionSeverityError, err.Error())
 		clusterScope.Error(err, "failed to reconcile bastion host")
 		return reconcile.Result{}, err
@@ -283,7 +285,7 @@ func (r *AWSClusterReconciler) SetupWithManager(mgr ctrl.Manager, options contro
 	controller, err := ctrl.NewControllerManagedBy(mgr).
 		WithOptions(options).
 		For(&infrav1.AWSCluster{}).
-		WithEventFilter(PausedPredicates(r.Log)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(r.Log, r.WatchFilterValue)).
 		WithEventFilter(
 			predicate.Funcs{
 				// Avoid reconciling if the event triggering the reconciliation is related to incremental status updates
