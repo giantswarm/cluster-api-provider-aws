@@ -7,6 +7,7 @@
   - [Using clusterawsadm to fulfill prerequisites](./topics/using-clusterawsadm-to-fulfill-prerequisites.md)
   - [Accessing EC2 instances](./topics/accessing-ec2-instances.md)
   - [Machine Pools](./topics/machinepools.md)
+  - [Multi-tenancy](./topics/multitenancy.md)
   - [EKS Support](./topics/eks/index.md)
     - [Prerequisites](./topics/eks/prerequisites.md)
     - [Enabling EKS Support](./topics/eks/enabling.md)
@@ -23,4 +24,4 @@
   - [Userdata Privacy](./topics/userdata-privacy.md)
   - [Troubleshooting](./topics/troubleshooting.md)
   - [Setting up Development Environment for Cluster API Provider AWS](./development/development.md)
-- [Roadmap](./roadmap.md)
+  - [IAM Permissions Used](./topics/iam-permissions.md)

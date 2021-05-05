@@ -38,7 +38,9 @@ func addDefaultingFuncs(scheme *runtime.Scheme) error {
 
 // SetDefaults_BootstrapUser is used by defaulter-gen
 func SetDefaults_BootstrapUser(obj *BootstrapUser) { //nolint:golint,stylecheck
-	obj.UserName = DefaultBootstrapUserName
+	if obj != nil && obj.UserName == "" {
+		obj.UserName = DefaultBootstrapUserName
+	}
 }
 
 // SetDefaults_AWSIAMConfigurationSpec is used by defaulter-gen
@@ -70,6 +72,11 @@ func SetDefaults_AWSIAMConfigurationSpec(obj *AWSIAMConfigurationSpec) { //nolin
 	}
 	if obj.EKS.ManagedMachinePool == nil {
 		obj.EKS.ManagedMachinePool = &AWSIAMRoleSpec{
+			Disable: true,
+		}
+	}
+	if obj.EKS.Fargate == nil {
+		obj.EKS.Fargate = &AWSIAMRoleSpec{
 			Disable: true,
 		}
 	}

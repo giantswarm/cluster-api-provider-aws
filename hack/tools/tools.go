@@ -21,14 +21,16 @@ package tools
 
 import (
 	_ "github.com/a8m/envsubst"
+	_ "github.com/ahmetb/gen-crd-api-reference-docs"
 	_ "github.com/golang/mock/mockgen"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/itchyny/gojq/cmd/gojq"
 	_ "github.com/onsi/ginkgo/ginkgo"
 	_ "k8s.io/code-generator"
+	_ "k8s.io/release/cmd/release-notes"
+	_ "sigs.k8s.io/cluster-api/hack/tools/mdbook/embed"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 	_ "sigs.k8s.io/kind"
 	_ "sigs.k8s.io/kustomize/kustomize/v3"
 	_ "sigs.k8s.io/testing_frameworks/integration"
-	- "k8s.io/release/cmd/release-notes"
 )
