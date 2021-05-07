@@ -24,13 +24,14 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2/klogr"
-	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
-	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud"
-	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/throttle"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
+	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud"
+	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/throttle"
 )
 
 // ClusterScopeParams defines the input parameters used to create a new Scope.
@@ -95,6 +96,11 @@ type ClusterScope struct {
 	session         awsclient.ConfigProvider
 	serviceLimiters throttle.ServiceLimiters
 	controllerName  string
+}
+
+// Client returns the cluster client object.
+func (s *ClusterScope) Client() client.Client {
+	return s.client
 }
 
 // Network returns the cluster network object.
