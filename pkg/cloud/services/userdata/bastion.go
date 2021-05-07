@@ -16,6 +16,12 @@ limitations under the License.
 
 package userdata
 
+import (
+	"bytes"
+	"mime/multipart"
+	"net/textproto"
+)
+
 const (
 	bastionBashScript = `{{.Header}}
 
@@ -33,13 +39,81 @@ pip install --upgrade pip &> /dev/null
 `
 )
 
+var bastionCloudConfig = `#cloud-config
+{{template "files" .WriteFiles}}
+`
+
 // BastionInput defines the context to generate a bastion instance user data.
 type BastionInput struct {
 	baseUserData
 }
 
-// NewBastion returns the user data string to be used on a bastion instance.
-func NewBastion(input *BastionInput) (string, error) {
+func NewScript(input *BastionInput) (string, error) {
 	input.Header = defaultHeader
 	return generate("bastion", bastionBashScript, input)
+}
+
+func NewCloudConfig(input *BastionInput) (string, error) {
+	return generate("cloudconfig", bastionCloudConfig, input)
+}
+
+func NewBastion(input *BastionInput) (string, error) {
+	cloudConfig, err := NewCloudConfig(input)
+	if err != nil {
+		return "", err
+	}
+
+	script, err := NewScript(input)
+	if err != nil {
+		return "", err
+	}
+
+	b := new(bytes.Buffer)
+
+	multi := multipart.NewWriter(b)
+
+	_, err = b.Write([]byte(`Content-Type: multipart/mixed; boundary="` + multi.Boundary() + `"`))
+	_, err = b.Write([]byte{'\n'})
+	_, err = b.Write([]byte("MIME-Version: 1.0\n"))
+	_, err = b.Write([]byte("Number-Attachments: 2\n"))
+	_, err = b.Write([]byte{'\n'})
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Type", `text/cloud-config; charset="us-ascii"`)
+	//h.Set("MIME-Version", "1.0")
+	h.Set("Content-Transfer-Encoding", "7bit")
+	h.Set("Content-Disposition", `attachment; filename="cloud-config.txt"`)
+
+	w, err := multi.CreatePart(h)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = w.Write([]byte(cloudConfig))
+	if err != nil {
+		return "", err
+	}
+
+	h = make(textproto.MIMEHeader)
+	h.Set("Content-Type", `text/x-shellscript; charset="us-ascii"`)
+	//h.Set("MIME-Version", "1.0")
+	h.Set("Content-Transfer-Encoding", "7bit")
+	h.Set("Content-Disposition", `attachment; filename="userdata.txt"`)
+
+	w, err = multi.CreatePart(h)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = w.Write([]byte(script))
+	if err != nil {
+		return "", err
+	}
+
+	err = multi.Close()
+	if err != nil {
+		return "", err
+	}
+
+	return b.String(), nil
 }

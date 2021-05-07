@@ -223,7 +223,7 @@ func reconcileNormal(clusterScope *scope.ClusterScope) (reconcile.Result, error)
 		return reconcile.Result{}, err
 	}
 
-	if err := ec2Service.ReconcileBastion(); err != nil {
+	if err := ec2Service.ReconcileBastion(clusterScope.Cluster, clusterScope.Client()); err != nil {
 		conditions.MarkFalse(awsCluster, infrav1.BastionHostReadyCondition, infrav1.BastionHostFailedReason, clusterv1.ConditionSeverityError, err.Error())
 		clusterScope.Error(err, "failed to reconcile bastion host")
 		return reconcile.Result{}, err

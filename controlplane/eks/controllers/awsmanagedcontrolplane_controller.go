@@ -228,7 +228,7 @@ func (r *AWSManagedControlPlaneReconciler) reconcileNormal(ctx context.Context, 
 		return reconcile.Result{}, errors.Wrapf(err, "failed to reconcile general security groups for AWSManagedControlPlane %s/%s", awsManagedControlPlane.Namespace, awsManagedControlPlane.Name)
 	}
 
-	if err := ec2Service.ReconcileBastion(); err != nil {
+	if err := ec2Service.ReconcileBastion(managedScope.Cluster, r.Client); err != nil {
 		conditions.MarkFalse(awsManagedControlPlane, infrav1.BastionHostReadyCondition, infrav1.BastionHostFailedReason, clusterv1.ConditionSeverityError, err.Error())
 		return reconcile.Result{}, fmt.Errorf("failed to reconcile bastion host for AWSManagedControlPlane %s/%s: %w", awsManagedControlPlane.Namespace, awsManagedControlPlane.Name, err)
 	}
