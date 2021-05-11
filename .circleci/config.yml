@@ -8,6 +8,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Create tag
+          command: |
+            make docker-build
+      - run:
           name: Build the CAPI docker images
           command: |
             make docker-build
