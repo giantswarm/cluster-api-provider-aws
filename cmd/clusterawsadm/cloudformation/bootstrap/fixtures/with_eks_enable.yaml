@@ -200,6 +200,7 @@ Resources:
           - ec2:DescribeLaunchTemplateVersions
           - ec2:DeleteLaunchTemplate
           - ec2:DeleteLaunchTemplateVersions
+          - ec2:DescribeKeyPairs
           Effect: Allow
           Resource:
           - '*'
@@ -326,6 +327,15 @@ Resources:
           Condition:
             StringEquals:
               iam:PassedToService: eks.amazonaws.com
+          Effect: Allow
+          Resource:
+          - '*'
+        - Action:
+          - kms:CreateGrant
+          - kms:DescribeKey
+          Condition:
+            ForAnyValue:StringLike:
+              kms:ResourceAliases: alias/cluster-api-provider-aws-*
           Effect: Allow
           Resource:
           - '*'
