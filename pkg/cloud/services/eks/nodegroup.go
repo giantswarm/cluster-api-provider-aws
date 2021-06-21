@@ -28,6 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
+	controlplanev1exp "sigs.k8s.io/cluster-api-provider-aws/controlplane/eks/api/v1alpha3"
+	infrav1exp "sigs.k8s.io/cluster-api-provider-aws/exp/api/v1alpha3"
+	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/converters"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/services/wait"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1alpha3"
@@ -81,19 +84,6 @@ func (s *NodegroupService) scalingConfig() *eks.NodegroupScalingConfig {
 	return &cfg
 }
 
-func (s *NodegroupService) subnets() []string {
-	subnetIDs := s.scope.SubnetIDs()
-	// If not specified, use all
-	if len(subnetIDs) == 0 {
-		subnetIDs := []string{}
-		for _, subnet := range s.scope.ControlPlaneSubnets() {
-			subnetIDs = append(subnetIDs, subnet.ID)
-		}
-		return subnetIDs
-	}
-	return subnetIDs
-}
-
 func (s *NodegroupService) roleArn() (*string, error) {
 	var role *iam.Role
 	if s.scope.RoleName() != "" {
@@ -119,17 +109,33 @@ func (s *NodegroupService) remoteAccess() (*eks.RemoteAccessConfig, error) {
 	}
 
 	controlPlane := s.scope.ControlPlane
-	sSGs := pool.RemoteAccess.SourceSecurityGroups
 
-	if controlPlane.Spec.Bastion.Enabled {
-		additionalSG, ok := controlPlane.Status.Network.SecurityGroups[infrav1.SecurityGroupEKSNodeAdditional]
+	// SourceSecurityGroups is validated to be empty if PublicAccess is true
+	// but just in case we use an empty list to take advantage of the documented
+	// API behavior
+	var sSGs = []string{}
+
+	if !pool.RemoteAccess.Public {
+		sSGs = pool.RemoteAccess.SourceSecurityGroups
+		// We add the EKS created cluster security group to the allowed security
+		// groups by default to prevent the API default of 0.0.0.0/0 from taking effect
+		// in case SourceSecurityGroups is empty
+		clusterSG, ok := controlPlane.Status.Network.SecurityGroups[controlplanev1exp.SecurityGroupCluster]
 		if !ok {
-			return nil, errors.Errorf("%s security group not found on control plane", infrav1.SecurityGroupEKSNodeAdditional)
+			return nil, errors.Errorf("%s security group not found on control plane", controlplanev1exp.SecurityGroupCluster)
 		}
-		sSGs = append(
-			sSGs,
-			additionalSG.ID,
-		)
+		sSGs = append(sSGs, clusterSG.ID)
+
+		if controlPlane.Spec.Bastion.Enabled {
+			additionalSG, ok := controlPlane.Status.Network.SecurityGroups[infrav1.SecurityGroupEKSNodeAdditional]
+			if !ok {
+				return nil, errors.Errorf("%s security group not found on control plane", infrav1.SecurityGroupEKSNodeAdditional)
+			}
+			sSGs = append(
+				sSGs,
+				additionalSG.ID,
+			)
+		}
 	}
 
 	sshKeyName := pool.RemoteAccess.SSHKeyName
@@ -159,11 +165,16 @@ func (s *NodegroupService) createNodegroup() (*eks.Nodegroup, error) {
 		return nil, errors.Wrap(err, "failed to create remote access configuration")
 	}
 
+	subnets, err := s.scope.SubnetIDs()
+	if err != nil {
+		return nil, fmt.Errorf("failed getting nodegroup subnets: %w", err)
+	}
+
 	input := &eks.CreateNodegroupInput{
 		ScalingConfig: s.scalingConfig(),
 		ClusterName:   aws.String(eksClusterName),
 		NodegroupName: aws.String(nodegroupName),
-		Subnets:       aws.StringSlice(s.subnets()),
+		Subnets:       aws.StringSlice(subnets),
 		NodeRole:      roleArn,
 		Labels:        aws.StringMap(managedPool.Labels),
 		Tags:          aws.StringMap(tags),
@@ -177,6 +188,14 @@ func (s *NodegroupService) createNodegroup() (*eks.Nodegroup, error) {
 	}
 	if managedPool.InstanceType != nil {
 		input.InstanceTypes = []*string{managedPool.InstanceType}
+	}
+	if len(managedPool.Taints) > 0 {
+		s.Info("adding taints to nodegroup", "nodegroup", nodegroupName)
+		taints, err := converters.TaintsToSDK(managedPool.Taints)
+		if err != nil {
+			return nil, fmt.Errorf("converting taints: %w", err)
+		}
+		input.Taints = taints
 	}
 	if err := input.Validate(); err != nil {
 		return nil, errors.Wrap(err, "created invalid CreateNodegroupInput")
@@ -317,6 +336,42 @@ func createLabelUpdate(specLabels map[string]string, ng *eks.Nodegroup) *eks.Upd
 	return nil
 }
 
+func (s *NodegroupService) createTaintsUpdate(specTaints infrav1exp.Taints, ng *eks.Nodegroup) (*eks.UpdateTaintsPayload, error) {
+	s.V(2).Info("Creating taints update for node group", "name", *ng.NodegroupName, "num_current", len(ng.Taints), "num_required", len(specTaints))
+	current, err := converters.TaintsFromSDK(ng.Taints)
+	if err != nil {
+		return nil, fmt.Errorf("converting taints: %w", err)
+	}
+	payload := eks.UpdateTaintsPayload{}
+	for _, specTaint := range specTaints {
+		st := specTaint.DeepCopy()
+		if !current.Contains(st) {
+			sdkTaint, err := converters.TaintToSDK(*st)
+			if err != nil {
+				return nil, fmt.Errorf("converting taint to sdk: %w", err)
+			}
+			payload.AddOrUpdateTaints = append(payload.AddOrUpdateTaints, sdkTaint)
+		}
+	}
+	for _, currentTaint := range current {
+		ct := currentTaint.DeepCopy()
+		if !specTaints.Contains(ct) {
+			sdkTaint, err := converters.TaintToSDK(*ct)
+			if err != nil {
+				return nil, fmt.Errorf("converting taint to sdk: %w", err)
+			}
+			payload.RemoveTaints = append(payload.RemoveTaints, sdkTaint)
+		}
+	}
+	if len(payload.AddOrUpdateTaints) > 0 || len(payload.RemoveTaints) > 0 {
+		s.V(2).Info("Node group taints update required", "name", *ng.NodegroupName, "addupdate", len(payload.AddOrUpdateTaints), "remove", len(payload.RemoveTaints))
+		return &payload, nil
+	}
+
+	s.V(2).Info("No updates required for node group taints", "name", *ng.NodegroupName)
+	return nil, nil
+}
+
 func (s *NodegroupService) reconcileNodegroupConfig(ng *eks.Nodegroup) error {
 	eksClusterName := s.scope.KubernetesClusterName()
 	machinePool := s.scope.MachinePool.Spec
@@ -327,15 +382,33 @@ func (s *NodegroupService) reconcileNodegroupConfig(ng *eks.Nodegroup) error {
 	}
 	var needsUpdate bool
 	if labelPayload := createLabelUpdate(managedPool.Labels, ng); labelPayload != nil {
+		s.V(2).Info("Nodegroup labels need an update", "nodegroup", ng.NodegroupName)
 		input.Labels = labelPayload
+		needsUpdate = true
+	}
+	taintsPayload, err := s.createTaintsUpdate(managedPool.Taints, ng)
+	if err != nil {
+		return fmt.Errorf("creating taints update payload: %w", err)
+	}
+	if taintsPayload != nil {
+		s.V(2).Info("nodegroup taints need updating")
+		input.Taints = taintsPayload
 		needsUpdate = true
 	}
 	if machinePool.Replicas == nil {
 		if ng.ScalingConfig.DesiredSize != nil && *ng.ScalingConfig.DesiredSize != 1 {
+			s.V(2).Info("Nodegroup desired size differs from spec, updating scaling configuration", "nodegroup", ng.NodegroupName)
 			input.ScalingConfig = s.scalingConfig()
 			needsUpdate = true
 		}
 	} else if ng.ScalingConfig.DesiredSize == nil || int64(*machinePool.Replicas) != *ng.ScalingConfig.DesiredSize {
+		s.V(2).Info("Nodegroup has no desired size or differs from replicas, updating scaling configuration", "nodegroup", ng.NodegroupName)
+		input.ScalingConfig = s.scalingConfig()
+		needsUpdate = true
+	}
+	if (aws.Int64Value(ng.ScalingConfig.MaxSize) != int64(aws.Int32Value(managedPool.Scaling.MaxSize))) ||
+		(aws.Int64Value(ng.ScalingConfig.MinSize) != int64(aws.Int32Value(managedPool.Scaling.MinSize))) {
+		s.V(2).Info("Nodegroup min/max differ from spec, updating scaling configuration", "nodegroup", ng.NodegroupName)
 		input.ScalingConfig = s.scalingConfig()
 		needsUpdate = true
 	}
@@ -346,7 +419,7 @@ func (s *NodegroupService) reconcileNodegroupConfig(ng *eks.Nodegroup) error {
 		return errors.Wrap(err, "created invalid UpdateNodegroupConfigInput")
 	}
 
-	_, err := s.EKSClient.UpdateNodegroupConfig(input)
+	_, err = s.EKSClient.UpdateNodegroupConfig(input)
 	if err != nil {
 		return errors.Wrap(err, "failed to update nodegroup config")
 	}

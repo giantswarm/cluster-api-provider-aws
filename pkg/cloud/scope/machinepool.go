@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/klogr"
+	"k8s.io/klog/v2/klogr"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1alpha3"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/exp/api/v1alpha3"
@@ -203,13 +204,38 @@ func (m *MachinePoolScope) GetASGStatus() *expinfrav1.ASGStatus {
 	return m.AWSMachinePool.Status.ASGStatus
 }
 
-// SetASGStatus sets the AWSMachine status instance state.
+// SetASGStatus sets the AWSMachinePool status instance state.
 func (m *MachinePoolScope) SetASGStatus(v expinfrav1.ASGStatus) {
 	m.AWSMachinePool.Status.ASGStatus = &v
 }
 
+// SetLaunchTemplateIDStatus sets the AWSMachinePool LaunchTemplateID status.
+func (m *MachinePoolScope) SetLaunchTemplateIDStatus(id string) {
+	m.AWSMachinePool.Status.LaunchTemplateID = id
+}
+
 func (m *MachinePoolScope) IsEKSManaged() bool {
 	return m.InfraCluster.InfraCluster().GetObjectKind().GroupVersionKind().Kind == "AWSManagedControlPlane"
+}
+
+// SubnetIDs returns the machine pool subnet IDs.
+func (m *MachinePoolScope) SubnetIDs() ([]string, error) {
+	subnetIDs := make([]string, len(m.AWSMachinePool.Spec.Subnets))
+	for i, v := range m.AWSMachinePool.Spec.Subnets {
+		subnetIDs[i] = aws.StringValue(v.ID)
+	}
+
+	strategy, err := newDefaultSubnetPlacementStrategy(m.Logger)
+	if err != nil {
+		return subnetIDs, fmt.Errorf("getting subnet placement strategy: %w", err)
+	}
+
+	return strategy.Place(&placementInput{
+		SpecSubnetIDs:           subnetIDs,
+		SpecAvailabilityZones:   m.AWSMachinePool.Spec.AvailabilityZones,
+		ParentAvailabilityZones: m.MachinePool.Spec.FailureDomains,
+		ControlplaneSubnets:     m.InfraCluster.Subnets(),
+	})
 }
 
 // NodeStatus represents the status of a Kubernetes node

@@ -14,7 +14,7 @@
 # For more details, run `go run ./cmd/clusterawsadm bootstrap credentials`
 
 images:
-  - name: gcr.io/k8s-staging-cluster-api/cluster-api-controller:v0.3.12
+  - name: gcr.io/k8s-staging-cluster-api/cluster-api-controller:v0.3.17
     loadBehavior: tryLoad
   # Use local dev images built source tree;
   - name: gcr.io/k8s-staging-cluster-api/capa-manager:e2e
@@ -35,9 +35,9 @@ providers:
   - name: cluster-api
     type: CoreProvider
     versions:
-      - name: v0.3.12
+      - name: v0.3.17
         # Use manifest from source files
-        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.12/core-components.yaml"
+        value: "https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.17/core-components.yaml"
         type: "url"
         replacements:
           - old: "imagePullPolicy: Always"
@@ -126,7 +126,7 @@ intervals:
   default/wait-control-plane: ["30m", "10s"]
   default/wait-worker-nodes: ["30m", "10s"]
   default/wait-controllers: ["3m", "10s"]
-  default/wait-delete-cluster: ["30m", "10s"]
+  default/wait-delete-cluster: ["35m", "10s"]
   default/wait-delete-machine: ["10m", "10s"]
   default/wait-delete-machine-deployment: ["10m", "10s"]
   default/wait-delete-machine-pool: ["20m", "10s"]

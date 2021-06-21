@@ -52,6 +52,7 @@ type EC2MachineInterface interface {
 
 	GetCoreSecurityGroups(machine *scope.MachineScope) ([]string, error)
 	GetInstanceSecurityGroups(instanceID string) (map[string][]string, error)
+	GetFilteredSecurityGroupID(securityGroup infrav1.AWSResourceReference) (string, error)
 	UpdateInstanceSecurityGroups(id string, securityGroups []string) error
 	UpdateResourceTags(resourceID *string, create, remove map[string]string) error
 
@@ -59,7 +60,8 @@ type EC2MachineInterface interface {
 	DetachSecurityGroupsFromNetworkInterface(groups []string, interfaceID string) error
 
 	DiscoverLaunchTemplateAMI(scope *scope.MachinePoolScope) (*string, error)
-	GetLaunchTemplate(id string) (*expinfrav1.AWSLaunchTemplate, error)
+	GetLaunchTemplate(id string) (lt *expinfrav1.AWSLaunchTemplate, userDataHash string, err error)
+	GetLaunchTemplateID(launchTemplateName string) (string, error)
 	CreateLaunchTemplate(scope *scope.MachinePoolScope, imageID *string, userData []byte) (string, error)
 	CreateLaunchTemplateVersion(scope *scope.MachinePoolScope, imageID *string, userData []byte) error
 	DeleteLaunchTemplate(id string) error

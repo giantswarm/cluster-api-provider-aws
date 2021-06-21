@@ -59,6 +59,9 @@ type AWSManagedMachinePoolSpec struct {
 	// +optional
 	EKSNodegroupName string `json:"eksNodegroupName,omitempty"`
 
+	// AvailabilityZones is an array of availability zones instances can run in
+	AvailabilityZones []string `json:"availabilityZones,omitempty"`
+
 	// SubnetIDs specifies which subnets are used for the
 	// auto scaling group of this nodegroup
 	// +optional
@@ -92,6 +95,10 @@ type AWSManagedMachinePoolSpec struct {
 	// Labels specifies labels for the Kubernetes node objects
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Taints specifies the taints to apply to the nodes of the machine pool
+	// +optional
+	Taints Taints `json:"taints,omitempty"`
 
 	// DiskSize specifies the root disk size
 	// +optional
@@ -129,8 +136,10 @@ type ManagedRemoteAccess struct {
 	SSHKeyName *string `json:"sshKeyName,omitempty"`
 
 	// SourceSecurityGroups specifies which security groups are allowed access
-	// An empty array opens port 22 to the public internet
 	SourceSecurityGroups []string `json:"sourceSecurityGroups,omitempty"`
+
+	// Public specifies whether to open port 22 to the public internet
+	Public bool `json:"public,omitempty"`
 }
 
 // AWSManagedMachinePoolStatus defines the observed state of AWSManagedMachinePool

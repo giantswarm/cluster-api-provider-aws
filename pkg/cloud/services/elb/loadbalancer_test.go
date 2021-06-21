@@ -18,6 +18,7 @@ package elb
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -142,6 +143,18 @@ func TestGetAPIServerClassicELBSpec_ControlPlaneLoadBalancer(t *testing.T) {
 				}
 				if len(res.AvailabilityZones) != 2 {
 					t.Errorf("Expected load balancer to be configured for 2 availability zones, got %v", len(res.AvailabilityZones))
+				}
+			},
+		},
+		{
+			name: "load balancer config with additional security groups specified",
+			lb: &infrav1.AWSLoadBalancerSpec{
+				AdditionalSecurityGroups: []string{"sg-00001", "sg-00002"},
+			},
+			mocks: func(m *mock_ec2iface.MockEC2APIMockRecorder) {},
+			expect: func(t *testing.T, res *infrav1.ClassicELB) {
+				if len(res.SecurityGroupIDs) != 3 {
+					t.Errorf("Expected load balancer to be configured for 3 security groups, got %v", len(res.SecurityGroupIDs))
 				}
 			},
 		},
@@ -386,6 +399,37 @@ func TestDescribeLoadbalancers(t *testing.T) {
 			_, err = s.describeClassicELB(tc.lbName)
 			if err == nil {
 				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestChunkELBs(t *testing.T) {
+	base := "loadbalancer"
+	var names []string
+	for i := 0; i < 25; i++ {
+		names = append(names, fmt.Sprintf("%s+%d", base, i))
+	}
+	tests := []struct {
+		testName              string
+		names                 []string
+		expectedChunkArrayLen int
+	}{
+		{
+			testName:              "When the user has more the 20 ELBs",
+			names:                 names,
+			expectedChunkArrayLen: 2,
+		}, {
+			testName:              "When the user has less than 20 ELBs",
+			names:                 []string{"loadBalancer-00"},
+			expectedChunkArrayLen: 1,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			ans := chunkELBs(tc.names)
+			if len(ans) != tc.expectedChunkArrayLen {
+				t.Errorf("got %d, want %d", len(ans), tc.expectedChunkArrayLen)
 			}
 		})
 	}
