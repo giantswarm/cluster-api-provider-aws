@@ -327,6 +327,13 @@ generate-eks-controlplane-manifests: $(CONTROLLER_GEN)
 ## Docker
 ## --------------------------------------
 
+# Determine the docker image tag. Try using the tag first or fallback to the commit SHA.
+DOCKER_IMAGE_TAG := $(CIRCLE_TAG)
+ifeq ($(DOCKER_IMAGE_TAG),)
+DOCKER_IMAGE_TAG := $(CIRCLE_SHA1)
+endif
+export DOCKER_IMAGE_TAG
+
 .PHONY: docker-build
 docker-build:
 	$(MAKE) ARCH=$(ARCH) docker-build-core
@@ -335,18 +342,18 @@ docker-build:
 
 .PHONY: docker-build-core
 docker-build-core: docker-pull-prerequisites ## Build the docker image for controller-manager
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG):$(CIRCLE_SHA1)
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG):$(DOCKER_IMAGE_TAG)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" . -t $(CORE_CONTROLLER_IMG_CHINA):$(DOCKER_IMAGE_TAG)
 
 .PHONY: docker-build-eks-bootstrap
 docker-build-eks-bootstrap: docker-pull-prerequisites
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG):$(CIRCLE_SHA1)
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG):$(DOCKER_IMAGE_TAG)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./bootstrap/eks . -t $(EKS_BOOTSTRAP_CONTROLLER_IMG_CHINA):$(DOCKER_IMAGE_TAG)
 
 .PHONY: docker-build-eks-controlplane
 docker-build-eks-controlplane: docker-pull-prerequisites
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG):$(CIRCLE_SHA1)
-	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG_CHINA):$(CIRCLE_SHA1)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG):$(DOCKER_IMAGE_TAG)
+	docker build --build-arg ARCH=$(ARCH) --build-arg LDFLAGS="$(LDFLAGS)" --build-arg package=./controlplane/eks . -t $(EKS_CONTROLPLANE_CONTROLLER_IMG_CHINA):$(DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
