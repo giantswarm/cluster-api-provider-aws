@@ -226,6 +226,7 @@ func (m *MachinePoolScope) SubnetIDs() ([]string, error) {
 		} else if v.Filters != nil {
 			criteria := []*ec2.Filter{
 				filter.EC2.SubnetStates(ec2.SubnetStatePending, ec2.SubnetStateAvailable),
+				filter.EC2.VPC(m.InfraCluster.VPC().ID),
 			}
 			for _, f := range v.Filters {
 				criteria = append(criteria, &ec2.Filter{Name: aws.String(f.Name), Values: aws.StringSlice(f.Values)})
