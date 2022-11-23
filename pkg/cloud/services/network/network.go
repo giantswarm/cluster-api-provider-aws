@@ -17,11 +17,12 @@ limitations under the License.
 package network
 
 import (
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/conditions"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/awserrors"
 	infrautilconditions "sigs.k8s.io/cluster-api-provider-aws/util/conditions"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
 // ReconcileNetwork reconciles the network of the given cluster.
@@ -158,10 +159,14 @@ func (s *Service) DeleteNetwork() (err error) {
 	}
 
 	if err := s.deleteVPC(); err != nil {
-		conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, "DeletingFailed", clusterv1.ConditionSeverityWarning, err.Error())
+		if s.scope.VPC().IsManaged(s.scope.Name()) {
+			conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, "DeletingFailed", clusterv1.ConditionSeverityWarning, err.Error())
+		}
 		return err
 	}
-	conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, clusterv1.DeletedReason, clusterv1.ConditionSeverityInfo, "")
+	if s.scope.VPC().IsManaged(s.scope.Name()) {
+		conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, clusterv1.DeletedReason, clusterv1.ConditionSeverityInfo, "")
+	}
 
 	s.scope.V(2).Info("Delete network completed successfully")
 	return nil
