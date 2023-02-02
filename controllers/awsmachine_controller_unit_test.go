@@ -2372,6 +2372,11 @@ func TestAWSMachineReconcilerReconcile(t *testing.T) {
 }
 
 func TestAWSMachineReconcilerReconcileDefaultsToLoadBalancerTypeClassic(t *testing.T) {
+	// When working with an outdated v1beta2 CRD by mistake, it could happen that
+	// `AWSCluster.Spec.ControlPlaneLoadBalancer.LoadBalancerType` was not set, but the object still written to etcd.
+	// This test simulates this case using a fake client. The controller should still handle that value by assuming
+	// classic LB as the type, since that is the default. It should not mistakenly try to reconcile against a v2 LB.
+
 	g := NewWithT(t)
 
 	ns := "testns"

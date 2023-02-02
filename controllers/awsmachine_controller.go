@@ -798,14 +798,20 @@ func (r *AWSMachineReconciler) reconcileLBAttachment(machineScope *scope.Machine
 		return r.deregisterInstanceFromV2LB(machineScope, elbsvc, i)
 	}
 
-	// This changes the flow because previously it didn't care about this part.
-	if elbScope.ControlPlaneLoadBalancer().LoadBalancerType == infrav1.LoadBalancerTypeClassic {
+	switch elbScope.ControlPlaneLoadBalancer().LoadBalancerType {
+	case infrav1.LoadBalancerTypeClassic:
+	case "":
 		machineScope.Debug("registering to classic load balancer")
 		return r.registerInstanceToClassicLB(machineScope, elbsvc, i)
+
+	case infrav1.LoadBalancerTypeELB:
+	case infrav1.LoadBalancerTypeALB:
+	case infrav1.LoadBalancerTypeNLB:
+		machineScope.Debug("registering to v2 load balancer")
+		return r.registerInstanceToV2LB(machineScope, elbsvc, i)
 	}
 
-	machineScope.Debug("registering to v2 load balancer")
-	return r.registerInstanceToV2LB(machineScope, elbsvc, i)
+	return errors.Errorf("unknown load balancer type %q", elbScope.ControlPlaneLoadBalancer().LoadBalancerType)
 }
 
 func (r *AWSMachineReconciler) registerInstanceToClassicLB(machineScope *scope.MachineScope, elbsvc services.ELBInterface, i *infrav1.Instance) error {
@@ -1024,12 +1030,6 @@ func (r *AWSMachineReconciler) getInfraCluster(ctx context.Context, log *logger.
 		// AWSCluster is not ready
 		return nil, nil //nolint:nilerr
 	}
-
-	// Set default for `ControlPlaneLoadBalancer.LoadBalancerType` since otherwise value might
-	// be an empty string (which we don't handle).
-	// The defaulting must happen before `NewClusterScope` is called since otherwise we keep detecting
-	// differences that result in patch operations.
-	awsCluster.Default()
 
 	// Create the cluster scope
 	clusterScope, err = scope.NewClusterScope(scope.ClusterScopeParams{
