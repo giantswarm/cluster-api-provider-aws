@@ -108,8 +108,12 @@ func (s *Service) reconcileNatGateways() error {
 		ngws, err := s.createNatGateways(subnetIDs)
 		var natGatewaysIPs []string
 
+		subnets := s.scope.Subnets()
+		defer func() {
+			s.scope.SetSubnets(subnets)
+		}()
 		for _, ng := range ngws {
-			subnet := s.scope.Subnets().FindByID(*ng.SubnetId)
+			subnet := subnets.FindByID(*ng.SubnetId)
 			subnet.NatGatewayID = ng.NatGatewayId
 			if len(ng.NatGatewayAddresses) > 0 && ng.NatGatewayAddresses[0].PublicIp != nil {
 				natGatewaysIPs = append(natGatewaysIPs, *ng.NatGatewayAddresses[0].PublicIp)

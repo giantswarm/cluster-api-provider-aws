@@ -18,6 +18,7 @@ package asg
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -406,6 +407,9 @@ func BuildTagsFromMap(asgName string, inTags map[string]string) []*autoscaling.T
 		})
 	}
 
+	// Sort so that unit tests can expect a stable order
+	sort.Slice(tags, func(i, j int) bool { return *tags[i].Key < *tags[j].Key })
+
 	return tags
 }
 
@@ -484,6 +488,10 @@ func mapToTags(input map[string]string, resourceID *string) []*autoscaling.Tag {
 			Value:             aws.String(v),
 		})
 	}
+
+	// Sort so that unit tests can expect a stable order
+	sort.Slice(tags, func(i, j int) bool { return *tags[i].Key < *tags[j].Key })
+
 	return tags
 }
 
