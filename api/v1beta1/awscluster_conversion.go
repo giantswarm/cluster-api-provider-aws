@@ -55,6 +55,24 @@ func (src *AWSCluster) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	dst.Status.Network.NatGatewaysIPs = restored.Status.Network.NatGatewaysIPs
 
+	if restored.Spec.NetworkSpec.VPC.IPAMPool != nil {
+		if dst.Spec.NetworkSpec.VPC.IPAMPool == nil {
+			dst.Spec.NetworkSpec.VPC.IPAMPool = &infrav2.IPAMPool{}
+		}
+
+		restoreIPAMPool(restored.Spec.NetworkSpec.VPC.IPAMPool, dst.Spec.NetworkSpec.VPC.IPAMPool)
+	}
+
+	if restored.Spec.NetworkSpec.VPC.IsIPv6Enabled() && restored.Spec.NetworkSpec.VPC.IPv6.IPAMPool != nil {
+		if dst.Spec.NetworkSpec.VPC.IPv6.IPAMPool == nil {
+			dst.Spec.NetworkSpec.VPC.IPv6.IPAMPool = &infrav2.IPAMPool{}
+		}
+
+		restoreIPAMPool(restored.Spec.NetworkSpec.VPC.IPv6.IPAMPool, dst.Spec.NetworkSpec.VPC.IPv6.IPAMPool)
+	}
+
+	dst.Spec.NetworkSpec.AdditionalControlPlaneIngressRules = restored.Spec.NetworkSpec.AdditionalControlPlaneIngressRules
+
 	return nil
 }
 
