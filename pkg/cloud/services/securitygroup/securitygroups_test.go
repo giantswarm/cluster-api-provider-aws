@@ -619,13 +619,13 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 
 	testCases := []struct {
 		name                         string
-		controlPlaneLBSpec           *infrav1.AWSLoadBalancerSpec
+		networkSpec                  infrav1.NetworkSpec
 		expectedAdditionalIngresRule infrav1.IngressRule
 	}{
 		{
 			name: "default control plane security group is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description: "test",
 						Protocol:    infrav1.SecurityGroupProtocolTCP,
@@ -644,8 +644,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:            "test",
 						Protocol:               infrav1.SecurityGroupProtocolTCP,
@@ -665,8 +665,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -686,8 +686,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role and a custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -717,7 +717,7 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 				},
 				AWSCluster: &infrav1.AWSCluster{
 					Spec: infrav1.AWSClusterSpec{
-						ControlPlaneLoadBalancer: tc.controlPlaneLBSpec,
+						NetworkSpec: tc.networkSpec,
 					},
 					Status: infrav1.AWSClusterStatus{
 						Network: infrav1.NetworkStatus{
