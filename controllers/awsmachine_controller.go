@@ -188,7 +188,7 @@ func (r *AWSMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	infraCluster, err := r.getInfraCluster(ctx, log, cluster, awsMachine)
 	if err != nil {
-		return ctrl.Result{}, errors.New("error getting infra provider cluster or control plane object")
+		return ctrl.Result{}, errors.Errorf("error getting infra provider cluster or control plane object: %v", err)
 	}
 	if infraCluster == nil {
 		log.Info("AWSCluster or AWSManagedControlPlane is not ready yet")
