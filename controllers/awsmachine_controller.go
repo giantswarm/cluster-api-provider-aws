@@ -797,7 +797,7 @@ func (r *AWSMachineReconciler) deleteIgnitionBootstrapDataFromS3(machineScope *s
 		return nil
 	}
 
-	// If bootstrap data has not been populated yet, we cannot determine it's format, so there is probably nothing to do.
+	// If bootstrap data has not been populated yet, we cannot determine its format, so there is probably nothing to do.
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		return nil
 	}
