@@ -20,11 +20,11 @@ images:
 ## PLEASE KEEP THESE UP TO DATE WITH THE COMPONENTS
 
   # Cluster API v1beta1 Preloads
-  - name: quay.io/jetstack/cert-manager-cainjector:v1.11.0
+  - name: quay.io/jetstack/cert-manager-cainjector:v1.12.1
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-webhook:v1.11.0
+  - name: quay.io/jetstack/cert-manager-webhook:v1.12.1
     loadBehavior: tryLoad
-  - name: quay.io/jetstack/cert-manager-controller:v1.11.0
+  - name: quay.io/jetstack/cert-manager-controller:v1.12.1
     loadBehavior: tryLoad
   - name: registry.k8s.io/cluster-api/cluster-api-controller:v1.4.1
     loadBehavior: tryLoad
@@ -152,7 +152,7 @@ variables:
   POST_1_23_KUBERNETES_VERSION: "v1.23.15"
   CNI: "../../data/cni/calico.yaml"
   KUBETEST_CONFIGURATION: "../../data/kubetest/conformance.yaml"
-  EVENT_BRIDGE_INSTANCE_STATE: "false"
+  EVENT_BRIDGE_INSTANCE_STATE: "true"
   AWS_CONTROL_PLANE_MACHINE_TYPE: t3.large
   AWS_NODE_MACHINE_TYPE: t3.large
   AWS_MACHINE_TYPE_VCPU_USAGE: 2
