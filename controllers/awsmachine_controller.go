@@ -419,8 +419,12 @@ func (r *AWSMachineReconciler) findInstance(scope *scope.MachineScope, ec2svc se
 	var instance *infrav1.Instance
 
 	// Parse the ProviderID.
+	//nolint:staticcheck
+	// Usage of noderefutil pkg would be removed in a future release.
 	pid, err := noderefutil.NewProviderID(scope.GetProviderID())
 	if err != nil {
+		//nolint:staticcheck
+		// Usage of noderefutil pkg would be removed in a future release.
 		if !errors.Is(err, noderefutil.ErrEmptyProviderID) {
 			return nil, errors.Wrapf(err, "failed to parse Spec.ProviderID")
 		}
@@ -433,6 +437,7 @@ func (r *AWSMachineReconciler) findInstance(scope *scope.MachineScope, ec2svc se
 	} else {
 		// If the ProviderID is populated, describe the instance using the ID.
 		// InstanceIfExists() returns error (ErrInstanceNotFoundByID or ErrDescribeInstance) if the instance could not be found.
+		//nolint:staticcheck
 		instance, err = ec2svc.InstanceIfExists(pointer.String(pid.ID()))
 		if err != nil {
 			return nil, err
@@ -798,7 +803,7 @@ func (r *AWSMachineReconciler) deleteIgnitionBootstrapDataFromS3(machineScope *s
 	}
 
 	_, userDataFormat, err := machineScope.GetRawBootstrapDataWithFormat()
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		r.Recorder.Eventf(machineScope.AWSMachine, corev1.EventTypeWarning, "FailedGetBootstrapData", err.Error())
 		return err
 	}
