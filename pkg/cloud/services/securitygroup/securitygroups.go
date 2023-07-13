@@ -519,20 +519,20 @@ func (s *Service) getSecurityGroupIngressRules(role infrav1.SecurityGroupRole) (
 		if s.scope.Bastion().Enabled {
 			rules = append(rules, s.defaultSSHIngressRule(s.scope.SecurityGroups()[infrav1.SecurityGroupBastion].ID))
 		}
-		if s.scope.ControlPlaneLoadBalancer() != nil {
-			ingressRules := s.scope.ControlPlaneLoadBalancer().IngressRules
-			for i := range ingressRules {
-				if ingressRules[i].SourceSecurityGroupIDs == nil && ingressRules[i].SourceSecurityGroupRoles == nil { // if the rule doesn't have a source security group, use the control plane security group
-					ingressRules[i].SourceSecurityGroupIDs = []string{s.scope.SecurityGroups()[infrav1.SecurityGroupControlPlane].ID}
-					continue
-				}
 
-				for _, sourceSGRole := range ingressRules[i].SourceSecurityGroupRoles {
-					ingressRules[i].SourceSecurityGroupIDs = append(ingressRules[i].SourceSecurityGroupIDs, s.scope.SecurityGroups()[sourceSGRole].ID)
-				}
+		ingressRules := s.scope.AdditionalControlPlaneIngressRules()
+		for i := range ingressRules {
+			if ingressRules[i].SourceSecurityGroupIDs == nil && ingressRules[i].SourceSecurityGroupRoles == nil { // if the rule doesn't have a source security group, use the control plane security group
+				ingressRules[i].SourceSecurityGroupIDs = []string{s.scope.SecurityGroups()[infrav1.SecurityGroupControlPlane].ID}
+				continue
 			}
-			rules = append(rules, s.scope.ControlPlaneLoadBalancer().IngressRules...)
+
+			for _, sourceSGRole := range ingressRules[i].SourceSecurityGroupRoles {
+				ingressRules[i].SourceSecurityGroupIDs = append(ingressRules[i].SourceSecurityGroupIDs, s.scope.SecurityGroups()[sourceSGRole].ID)
+			}
 		}
+		rules = append(rules, s.scope.AdditionalControlPlaneIngressRules()...)
+
 		return append(cniRules, rules...), nil
 
 	case infrav1.SecurityGroupNode:
