@@ -221,6 +221,7 @@ func (s *Service) ensureBucketPolicy(bucketName string) error {
 	}
 
 	if _, err := s.S3Client.PutBucketPolicy(input); err != nil {
+		s.scope.Error(err, "failed to put S3 bucket policy", "bucketPolicy", bucketPolicy)
 		return errors.Wrap(err, "creating S3 bucket policy")
 	}
 
