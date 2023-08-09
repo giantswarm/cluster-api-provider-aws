@@ -253,10 +253,12 @@ func (r *AWSClusterReconciler) reconcileDelete(ctx context.Context, clusterScope
 		}
 	}
 
+	fmt.Printf("ANDI Deleting network %s\n", clusterScope.Name())
 	if err := networkSvc.DeleteNetwork(); err != nil {
 		clusterScope.Error(err, "error deleting network")
 		return reconcile.Result{}, err
 	}
+	fmt.Printf("ANDI Deleted network %s\n", clusterScope.Name())
 
 	if err := s3Service.DeleteBucket(); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "error deleting S3 Bucket")

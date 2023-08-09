@@ -17,6 +17,8 @@ limitations under the License.
 package network
 
 import (
+	"fmt"
+
 	"k8s.io/klog/v2"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
@@ -83,12 +85,14 @@ func (s *Service) DeleteNetwork() (err error) {
 
 	vpc := &infrav1.VPCSpec{}
 	// Get VPC used for the cluster
+	fmt.Printf("ANDI Deleting VPC ID %q for %s\n", s.scope.VPC().ID, s.scope.Name())
 	if s.scope.VPC().ID != "" {
 		var err error
 		vpc, err = s.describeVPCByID()
 		if err != nil {
 			if awserrors.IsNotFound(err) {
 				// If the VPC does not exist, nothing to do
+				fmt.Printf("ANDI VPC ID %q does not exist for %s\n", s.scope.VPC().ID, s.scope.Name())
 				return nil
 			}
 			return err
@@ -177,12 +181,14 @@ func (s *Service) DeleteNetwork() (err error) {
 		return err
 	}
 
+	fmt.Printf("ANDI Deleting VPC call %s\n", s.scope.Name())
 	if err := s.deleteVPC(); err != nil {
 		conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, "DeletingFailed", clusterv1.ConditionSeverityWarning, err.Error())
 		return err
 	}
 	conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, clusterv1.DeletedReason, clusterv1.ConditionSeverityInfo, "")
 
+	fmt.Printf("ANDI Deleting VPC call succeeded %s\n", s.scope.Name())
 	s.scope.Debug("Delete network completed successfully")
 	return nil
 }
