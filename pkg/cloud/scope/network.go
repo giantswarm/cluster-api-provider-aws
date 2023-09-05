@@ -18,7 +18,9 @@ package scope
 
 import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
+	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/logger"
 )
 
 // NetworkScope is the interface for the scope to be used with the network services.
@@ -50,4 +52,11 @@ type NetworkScope interface {
 	SetNatGatewaysIPs(ips []string)
 	// GetNatGatewaysIPs gets the Nat Gateways Public IPs.
 	GetNatGatewaysIPs() []string
+}
+
+// NetworkScope is the interface for the scope to be used with AWSNetwork.
+type AWSNetworkScope struct {
+	logger.Logger
+
+	AWSNetwork *expinfrav1.AWSNetwork
 }

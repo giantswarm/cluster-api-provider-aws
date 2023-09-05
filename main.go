@@ -294,6 +294,19 @@ func setupReconcilersAndWebhooks(ctx context.Context, mgr ctrl.Manager, awsServi
 		}
 	}
 
+	if feature.Gates.Enabled(feature.NetworkTypes) {
+		setupLog.Debug("enabling network controller")
+
+		if err := (&expcontrollers.AWSNetworkReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("AWSNetwork"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSNetwork")
+			os.Exit(1)
+		}
+	}
+
 	if err := (&infrav1.AWSMachineTemplateWebhook{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "AWSMachineTemplate")
 		os.Exit(1)

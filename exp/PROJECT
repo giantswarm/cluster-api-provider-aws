@@ -27,4 +27,7 @@ resources:
 - group: bootstrap
   kind: AWSFargateProfile
   version: v1beta2
+- group: infrastructure
+  kind: AWSNetwork
+  version: v1beta2
 version: "2"

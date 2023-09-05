@@ -80,6 +80,11 @@ const (
 	// owner: @skarlso
 	// alpha: v2.0
 	TagUnmanagedNetworkResources featuregate.Feature = "TagUnmanagedNetworkResources"
+
+	// NetworkTypes is used to enable the AWSNetwork reconciliation
+	// owner: @AndiDog
+	// alpha: v2.2
+	NetworkTypes featuregate.Feature = "NetworkTypes"
 )
 
 func init() {
