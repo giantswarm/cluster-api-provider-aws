@@ -44,20 +44,26 @@ jobs:
       #     go-version: ${{ env.go_version }}
 
       - name: Generate release artifacts
+        env:
+          GITHUB_TOKEN: "unused" # since we create the release without using CAPA's Makefile target
         run: |
           # Dealing with changelogs isn't that easy since Giant Swarm releases can jump from `v2.2.0` to `v2.3.1`
           # as we skip intermediate releases. Therefore, finding the required value for `PREVIOUS_VERSION` would be
           # a manual task. Better not deal with the changelog right now since it's unlikely that someone will look
           # at those in our fork (as compared to upstream's releases).
-          printf '#!/bin/sh\necho "Changelogs are not filled in this fork"\n' > hack/releasechangelog.sh
+          printf '#!/bin/sh\necho "Changelogs are not filled in this fork"\n' > hack/releasechangelog.sh # old path of this tool
+          mkdir -p hack/tools/bin
+          printf '#!/bin/sh\necho "Changelogs are not filled in this fork" > out/CHANGELOG.md\n' > hack/tools/bin/release-notes
+          chmod +x hack/tools/bin/release-notes
 
           # We don't need the binaries and other stuff in the release, either. Really only the YAML manifests.
           sed -i -E -e '/\$\(MAKE\) (release-binaries|release-templates|release-policies)/d' Makefile
+          sed -i -E -e '/cp metadata.yaml/d' Makefile
 
           # To allow the above changes since normally the Makefile wouldn't allow a dirty Git repo
           sed -i -e '/Your local git repository contains uncommitted changes/d' Makefile
 
-          (set -x; make RELEASE_TAG="${RELEASE_TAG}" release)
+          (set -x; make PREVIOUS_VERSION="${RELEASE_TAG}" RELEASE_TAG="${RELEASE_TAG}" release)
 
       # Instead of `make VERSION="${RELEASE_TAG}" create-gh-release upload-gh-artifacts`, which requires GitHub CLI
       # authentication, use an action which does the same.
