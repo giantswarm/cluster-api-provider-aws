@@ -743,15 +743,19 @@ func ingressRulesFromSDKType(v *ec2.IpPermission) (res infrav1.IngressRules) {
 	}
 
 	if len(v.IpRanges) > 0 {
-		r1 := ir
 		for _, ec2range := range v.IpRanges {
+			ingressRule := infrav1.IngressRule{
+				Protocol:   infrav1.SecurityGroupProtocol(*v.IpProtocol),
+				FromPort:   *v.FromPort,
+				ToPort:     *v.ToPort,
+				CidrBlocks: []string{*ec2range.CidrIp},
+			}
 			if ec2range.Description != nil && *ec2range.Description != "" {
-				r1.Description = *ec2range.Description
+				ingressRule.Description = *ec2range.Description
 			}
 
-			r1.CidrBlocks = append(r1.CidrBlocks, *ec2range.CidrIp)
+			res = append(res, ingressRule)
 		}
-		res = append(res, r1)
 	}
 
 	if len(v.Ipv6Ranges) > 0 {
@@ -793,7 +797,11 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 		return s.getIngressRuleToAllowVPCCidrInTheAPIServer()
 	}
 
+	natGatewaysCidrs := []string{}
 	natGatewaysIPs := s.scope.GetNatGatewaysIPs()
+	for _, ip := range natGatewaysIPs {
+		natGatewaysCidrs = append(natGatewaysCidrs, fmt.Sprintf("%s/32", ip))
+	}
 	if len(natGatewaysIPs) > 0 {
 		return infrav1.IngressRules{
 			{
@@ -801,7 +809,7 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 				Protocol:    infrav1.SecurityGroupProtocolTCP,
 				FromPort:    int64(s.scope.APIServerPort()),
 				ToPort:      int64(s.scope.APIServerPort()),
-				CidrBlocks:  natGatewaysIPs,
+				CidrBlocks:  natGatewaysCidrs,
 			},
 		}
 	}
