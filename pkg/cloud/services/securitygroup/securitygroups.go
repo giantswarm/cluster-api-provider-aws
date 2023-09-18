@@ -793,7 +793,11 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 		return s.getIngressRuleToAllowVPCCidrInTheAPIServer()
 	}
 
+	natGatewaysCidrs := []string{}
 	natGatewaysIPs := s.scope.GetNatGatewaysIPs()
+	for _, ip := range natGatewaysIPs {
+		natGatewaysCidrs = append(natGatewaysCidrs, fmt.Sprintf("%s/32", ip))
+	}
 	if len(natGatewaysIPs) > 0 {
 		return infrav1.IngressRules{
 			{
@@ -801,7 +805,7 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 				Protocol:    infrav1.SecurityGroupProtocolTCP,
 				FromPort:    int64(s.scope.APIServerPort()),
 				ToPort:      int64(s.scope.APIServerPort()),
-				CidrBlocks:  natGatewaysIPs,
+				CidrBlocks:  natGatewaysCidrs,
 			},
 		}
 	}
