@@ -761,9 +761,8 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 // mockedCallsForMissingEverything mocks most of the AWSCluster reconciliation calls to the AWS API,
 // except for what other functions provide (see `mockedCreateSGCalls` and `mockedDescribeInstanceCall`).
 func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.MockELBAPIMockRecorder) {
-	m.CreateVpc(gomock.Eq(&ec2.CreateVpcInput{
-		AmazonProvidedIpv6CidrBlock: aws.Bool(false),
-		CidrBlock:                   aws.String("10.0.0.0/8"),
+	m.CreateVpcWithContext(context.TODO(), gomock.Eq(&ec2.CreateVpcInput{
+		CidrBlock: aws.String("10.0.0.0/8"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("vpc"),
@@ -805,21 +804,21 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.DescribeVpcAttribute(gomock.Eq(&ec2.DescribeVpcAttributeInput{
+	m.DescribeVpcAttributeWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcAttributeInput{
 		VpcId:     aws.String("vpc-new"),
 		Attribute: aws.String("enableDnsHostnames"),
 	})).Return(&ec2.DescribeVpcAttributeOutput{
 		EnableDnsHostnames: &ec2.AttributeBooleanValue{Value: aws.Bool(true)},
 	}, nil)
 
-	m.DescribeVpcAttribute(gomock.Eq(&ec2.DescribeVpcAttributeInput{
+	m.DescribeVpcAttributeWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcAttributeInput{
 		VpcId:     aws.String("vpc-new"),
 		Attribute: aws.String("enableDnsSupport"),
 	})).Return(&ec2.DescribeVpcAttributeOutput{
 		EnableDnsSupport: &ec2.AttributeBooleanValue{Value: aws.Bool(true)},
 	}, nil)
 
-	m.DescribeSubnets(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.DescribeSubnetsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("state"),
@@ -833,7 +832,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		Subnets: []*ec2.Subnet{},
 	}, nil)
 
-	m.CreateSubnet(gomock.Eq(&ec2.CreateSubnetInput{
+	m.CreateSubnetWithContext(context.TODO(), gomock.Eq(&ec2.CreateSubnetInput{
 		VpcId:            aws.String("vpc-new"),
 		CidrBlock:        aws.String("10.0.10.0/24"),
 		AvailabilityZone: aws.String("us-east-1a"),
@@ -896,11 +895,11 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilSubnetAvailable(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.WaitUntilSubnetAvailableWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		SubnetIds: aws.StringSlice([]string{"subnet-1"}),
 	})).Return(nil)
 
-	m.CreateSubnet(gomock.Eq(&ec2.CreateSubnetInput{
+	m.CreateSubnetWithContext(context.TODO(), gomock.Eq(&ec2.CreateSubnetInput{
 		VpcId:            aws.String("vpc-new"),
 		CidrBlock:        aws.String("10.0.11.0/24"),
 		AvailabilityZone: aws.String("us-east-1a"),
@@ -963,18 +962,18 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilSubnetAvailable(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.WaitUntilSubnetAvailableWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		SubnetIds: aws.StringSlice([]string{"subnet-2"}),
 	})).Return(nil)
 
-	m.ModifySubnetAttribute(gomock.Eq(&ec2.ModifySubnetAttributeInput{
+	m.ModifySubnetAttributeWithContext(context.TODO(), gomock.Eq(&ec2.ModifySubnetAttributeInput{
 		SubnetId: aws.String("subnet-2"),
 		MapPublicIpOnLaunch: &ec2.AttributeBooleanValue{
 			Value: aws.Bool(true),
 		},
 	})).Return(&ec2.ModifySubnetAttributeOutput{}, nil)
 
-	m.DescribeRouteTables(gomock.Eq(&ec2.DescribeRouteTablesInput{
+	m.DescribeRouteTablesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -996,7 +995,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil).MinTimes(1).MaxTimes(2)
 
-	m.DescribeInternetGateways(gomock.Eq(&ec2.DescribeInternetGatewaysInput{
+	m.DescribeInternetGatewaysWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("attachment.vpc-id"),
@@ -1007,7 +1006,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		InternetGateways: []*ec2.InternetGateway{},
 	}, nil)
 
-	m.CreateInternetGateway(gomock.AssignableToTypeOf(&ec2.CreateInternetGatewayInput{})).
+	m.CreateInternetGatewayWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.CreateInternetGatewayInput{})).
 		Return(&ec2.CreateInternetGatewayOutput{
 			InternetGateway: &ec2.InternetGateway{
 				InternetGatewayId: aws.String("igw-1"),
@@ -1028,13 +1027,13 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			},
 		}, nil)
 
-	m.AttachInternetGateway(gomock.Eq(&ec2.AttachInternetGatewayInput{
+	m.AttachInternetGatewayWithContext(context.TODO(), gomock.Eq(&ec2.AttachInternetGatewayInput{
 		InternetGatewayId: aws.String("igw-1"),
 		VpcId:             aws.String("vpc-new"),
 	})).
 		Return(&ec2.AttachInternetGatewayOutput{}, nil)
 
-	m.DescribeNatGatewaysPages(gomock.Eq(&ec2.DescribeNatGatewaysInput{
+	m.DescribeNatGatewaysPagesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1046,7 +1045,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			},
 		}}), gomock.Any()).Return(nil).MinTimes(1).MaxTimes(2)
 
-	m.DescribeAddresses(gomock.Eq(&ec2.DescribeAddressesInput{
+	m.DescribeAddressesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -1061,7 +1060,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		Addresses: []*ec2.Address{},
 	}, nil)
 
-	m.AllocateAddress(gomock.Eq(&ec2.AllocateAddressInput{
+	m.AllocateAddressWithContext(context.TODO(), gomock.Eq(&ec2.AllocateAddressInput{
 		Domain: aws.String("vpc"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -1086,7 +1085,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		AllocationId: aws.String("1234"),
 	}, nil)
 
-	m.CreateNatGateway(gomock.Eq(&ec2.CreateNatGatewayInput{
+	m.CreateNatGatewayWithContext(context.TODO(), gomock.Eq(&ec2.CreateNatGatewayInput{
 		AllocationId: aws.String("1234"),
 		SubnetId:     aws.String("subnet-2"),
 		TagSpecifications: []*ec2.TagSpecification{
@@ -1115,11 +1114,11 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilNatGatewayAvailable(&ec2.DescribeNatGatewaysInput{
+	m.WaitUntilNatGatewayAvailableWithContext(context.TODO(), &ec2.DescribeNatGatewaysInput{
 		NatGatewayIds: []*string{aws.String("nat-01")},
 	}).Return(nil)
 
-	m.CreateRouteTable(gomock.Eq(&ec2.CreateRouteTableInput{
+	m.CreateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteTableInput{
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("route-table"),
@@ -1150,18 +1149,18 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.CreateRoute(gomock.Eq(&ec2.CreateRouteInput{
+	m.CreateRouteWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteInput{
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),
 		NatGatewayId:         aws.String("nat-01"),
 		RouteTableId:         aws.String("rtb-1"),
 	})).Return(&ec2.CreateRouteOutput{}, nil)
 
-	m.AssociateRouteTable(gomock.Eq(&ec2.AssociateRouteTableInput{
+	m.AssociateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.AssociateRouteTableInput{
 		RouteTableId: aws.String("rtb-1"),
 		SubnetId:     aws.String("subnet-1"),
 	})).Return(&ec2.AssociateRouteTableOutput{}, nil)
 
-	m.CreateRouteTable(gomock.Eq(&ec2.CreateRouteTableInput{
+	m.CreateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteTableInput{
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("route-table"),
@@ -1192,13 +1191,13 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.CreateRoute(gomock.Eq(&ec2.CreateRouteInput{
+	m.CreateRouteWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteInput{
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),
 		GatewayId:            aws.String("igw-1"),
 		RouteTableId:         aws.String("rtb-2"),
 	})).Return(&ec2.CreateRouteOutput{}, nil)
 
-	m.AssociateRouteTable(gomock.Eq(&ec2.AssociateRouteTableInput{
+	m.AssociateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.AssociateRouteTableInput{
 		RouteTableId: aws.String("rtb-2"),
 		SubnetId:     aws.String("subnet-2"),
 	})).Return(&ec2.AssociateRouteTableOutput{}, nil)
