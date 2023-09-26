@@ -17,12 +17,13 @@ limitations under the License.
 package securitygroup
 
 import (
-	"reflect"
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
@@ -89,10 +90,10 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
 					Return(&ec2.DescribeSecurityGroupsOutput{}, nil)
 
-				securityGroupBastion := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupBastion := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-bastion"),
 					Description: aws.String("Kubernetes cluster test-cluster: bastion"),
@@ -118,13 +119,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-bastion")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-bastion"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupBastion)
 
-				securityGroupAPIServerLb := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupAPIServerLb := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-apiserver-lb"),
 					Description: aws.String("Kubernetes cluster test-cluster: apiserver-lb"),
@@ -150,13 +151,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-apiserver-lb")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-apiserver-lb"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupAPIServerLb)
 
-				m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-lb"),
 					Description: aws.String("Kubernetes cluster test-cluster: lb"),
@@ -186,7 +187,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-lb")}, nil)
 
-				securityGroupControl := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupControl := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-controlplane"),
 					Description: aws.String("Kubernetes cluster test-cluster: controlplane"),
@@ -212,13 +213,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-control")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-control"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupControl)
 
-				securityGroupNode := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupNode := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-node"),
 					Description: aws.String("Kubernetes cluster test-cluster: node"),
@@ -244,7 +245,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-node")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-node"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
@@ -283,10 +284,10 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
 					Return(&ec2.DescribeSecurityGroupsOutput{}, nil)
 
-				securityGroupBastion := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupBastion := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-bastion"),
 					Description: aws.String("Kubernetes cluster test-cluster: bastion"),
@@ -312,13 +313,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-bastion")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-bastion"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupBastion)
 
-				securityGroupAPIServerLb := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupAPIServerLb := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-apiserver-lb"),
 					Description: aws.String("Kubernetes cluster test-cluster: apiserver-lb"),
@@ -344,13 +345,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-apiserver-lb")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-apiserver-lb"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupAPIServerLb)
 
-				lbSecurityGroup := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				lbSecurityGroup := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-lb"),
 					Description: aws.String("Kubernetes cluster test-cluster: lb"),
@@ -379,13 +380,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 					},
 				})).Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-lb")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-lb"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(lbSecurityGroup)
 
-				securityGroupControl := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupControl := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-controlplane"),
 					Description: aws.String("Kubernetes cluster test-cluster: controlplane"),
@@ -411,13 +412,13 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-control")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-control"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 					After(securityGroupControl)
 
-				securityGroupNode := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+				securityGroupNode := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 					VpcId:       aws.String("vpc-securitygroups"),
 					GroupName:   aws.String("test-cluster-node"),
 					Description: aws.String("Kubernetes cluster test-cluster: node"),
@@ -443,7 +444,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				})).
 					Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-node")}, nil)
 
-				m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-node"),
 				})).
 					Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
@@ -482,7 +483,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
 					Return(&ec2.DescribeSecurityGroupsOutput{
 						SecurityGroups: []*ec2.SecurityGroup{
 							{GroupId: aws.String("sg-bastion"), GroupName: aws.String("Bastion Security Group")},
@@ -529,7 +530,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
 					Return(&ec2.DescribeSecurityGroupsOutput{
 						SecurityGroups: []*ec2.SecurityGroup{
 							{GroupId: aws.String("sg-bastion"), GroupName: aws.String("Bastion Security Group")},
@@ -619,13 +620,13 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 
 	testCases := []struct {
 		name                         string
-		controlPlaneLBSpec           *infrav1.AWSLoadBalancerSpec
+		networkSpec                  infrav1.NetworkSpec
 		expectedAdditionalIngresRule infrav1.IngressRule
 	}{
 		{
 			name: "default control plane security group is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description: "test",
 						Protocol:    infrav1.SecurityGroupProtocolTCP,
@@ -644,8 +645,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:            "test",
 						Protocol:               infrav1.SecurityGroupProtocolTCP,
@@ -665,8 +666,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -686,8 +687,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role and a custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -706,6 +707,26 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 				SourceSecurityGroupIDs: []string{"test", "node-sg-id"},
 			},
 		},
+		{
+			name: "don't set source security groups if cidr blocks are set",
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
+					{
+						Description: "test",
+						Protocol:    infrav1.SecurityGroupProtocolTCP,
+						FromPort:    9345,
+						ToPort:      9345,
+						CidrBlocks:  []string{"test-cidr-block"},
+					},
+				},
+			},
+			expectedAdditionalIngresRule: infrav1.IngressRule{
+				Description: "test",
+				Protocol:    infrav1.SecurityGroupProtocolTCP,
+				FromPort:    9345,
+				ToPort:      9345,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -717,7 +738,7 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 				},
 				AWSCluster: &infrav1.AWSCluster{
 					Spec: infrav1.AWSClusterSpec{
-						ControlPlaneLoadBalancer: tc.controlPlaneLBSpec,
+						NetworkSpec: tc.networkSpec,
 					},
 					Status: infrav1.AWSClusterStatus{
 						Network: infrav1.NetworkStatus{
@@ -760,7 +781,7 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 						t.Fatalf("Expected to port %d, got %d", tc.expectedAdditionalIngresRule.ToPort, r.ToPort)
 					}
 
-					if !reflect.DeepEqual(r.SourceSecurityGroupIDs, tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs) {
+					if !sets.New[string](tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs...).Equal(sets.New[string](tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs...)) {
 						t.Fatalf("Expected source security group IDs %v, got %v", tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs, r.SourceSecurityGroupIDs)
 					}
 				}
@@ -852,7 +873,7 @@ func TestControlPlaneLoadBalancerIngressRules(t *testing.T) {
 					Protocol:    infrav1.SecurityGroupProtocolTCP,
 					FromPort:    6443,
 					ToPort:      6443,
-					CidrBlocks:  []string{"1.2.3.4"},
+					CidrBlocks:  []string{"1.2.3.4/32"},
 				},
 				infrav1.IngressRule{
 					Description: "Kubernetes API",
@@ -896,7 +917,7 @@ func TestControlPlaneLoadBalancerIngressRules(t *testing.T) {
 					Protocol:    infrav1.SecurityGroupProtocolTCP,
 					FromPort:    6443,
 					ToPort:      6443,
-					CidrBlocks:  []string{"1.2.3.4"},
+					CidrBlocks:  []string{"1.2.3.4/32"},
 				},
 				infrav1.IngressRule{
 					Description: "My custom ingress rule",
@@ -1077,7 +1098,7 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).Return(nil)
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).Return(nil)
 			},
 		},
 		{
@@ -1092,7 +1113,7 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				VPC: infrav1.VPCSpec{ID: "vpc-id"},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).Return(awserrors.NewFailedDependency("dependency-failure"))
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).Return(awserrors.NewFailedDependency("dependency-failure"))
 			},
 			wantErr: true,
 		},
@@ -1102,9 +1123,9 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				VPC: infrav1.VPCSpec{ID: "vpc-id"},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
 					Do(processSecurityGroupsPage).Return(nil)
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(nil, awserr.New("dependency-failure", "dependency-failure", errors.Errorf("dependency-failure")))
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(nil, awserr.New("dependency-failure", "dependency-failure", errors.Errorf("dependency-failure")))
 			},
 			wantErr: true,
 		},
@@ -1114,9 +1135,9 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				VPC: infrav1.VPCSpec{ID: "vpc-id"},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
 					Do(processSecurityGroupsPage).Return(nil)
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
 					SecurityGroups: []*ec2.SecurityGroup{
 						{
 							GroupId:   aws.String("group-id"),
@@ -1124,7 +1145,7 @@ func TestDeleteSecurityGroups(t *testing.T) {
 						},
 					},
 				}, nil)
-				m.DeleteSecurityGroup(gomock.AssignableToTypeOf(&ec2.DeleteSecurityGroupInput{})).Return(nil, nil)
+				m.DeleteSecurityGroupWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DeleteSecurityGroupInput{})).Return(nil, nil)
 			},
 		},
 		{
@@ -1133,9 +1154,9 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				VPC: infrav1.VPCSpec{ID: "vpc-id"},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
 					Do(processSecurityGroupsPage).Return(nil)
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
 					SecurityGroups: []*ec2.SecurityGroup{
 						{
 							GroupId:   aws.String("group-id"),
@@ -1148,7 +1169,7 @@ func TestDeleteSecurityGroups(t *testing.T) {
 						},
 					},
 				}, nil)
-				m.RevokeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupIngressInput{})).Return(nil, awserr.New("failure", "failure", errors.Errorf("failure")))
+				m.RevokeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupIngressInput{})).Return(nil, awserr.New("failure", "failure", errors.Errorf("failure")))
 			},
 			wantErr: true,
 		},
@@ -1158,9 +1179,9 @@ func TestDeleteSecurityGroups(t *testing.T) {
 				VPC: infrav1.VPCSpec{ID: "vpc-id"},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
-				m.DescribeSecurityGroupsPages(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
+				m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{}), gomock.Any()).
 					Do(processSecurityGroupsPage).Return(nil)
-				m.DescribeSecurityGroups(gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
+				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).Return(&ec2.DescribeSecurityGroupsOutput{
 					SecurityGroups: []*ec2.SecurityGroup{
 						{
 							GroupId:   aws.String("group-id"),
@@ -1173,8 +1194,8 @@ func TestDeleteSecurityGroups(t *testing.T) {
 						},
 					},
 				}, nil)
-				m.RevokeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupIngressInput{})).Return(nil, nil)
-				m.DeleteSecurityGroup(gomock.AssignableToTypeOf(&ec2.DeleteSecurityGroupInput{})).Return(nil, nil)
+				m.RevokeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupIngressInput{})).Return(nil, nil)
+				m.DeleteSecurityGroupWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DeleteSecurityGroupInput{})).Return(nil, nil)
 			},
 		},
 	}
@@ -1232,6 +1253,40 @@ func TestIngressRulesFromSDKType(t *testing.T) {
 		expected infrav1.IngressRules
 	}{
 		{
+			name: "two ingress rules",
+			input: &ec2.IpPermission{
+				IpProtocol: aws.String("tcp"),
+				FromPort:   aws.Int64(6443),
+				ToPort:     aws.Int64(6443),
+				IpRanges: []*ec2.IpRange{
+					{
+						CidrIp:      aws.String("0.0.0.0/0"),
+						Description: aws.String("Kubernetes API"),
+					},
+					{
+						CidrIp:      aws.String("192.168.1.1/32"),
+						Description: aws.String("My VPN"),
+					},
+				},
+			},
+			expected: infrav1.IngressRules{
+				{
+					Description: "Kubernetes API",
+					Protocol:    "tcp",
+					FromPort:    6443,
+					ToPort:      6443,
+					CidrBlocks:  []string{"0.0.0.0/0"},
+				},
+				{
+					Description: "My VPN",
+					Protocol:    "tcp",
+					FromPort:    6443,
+					ToPort:      6443,
+					CidrBlocks:  []string{"192.168.1.1/32"},
+				},
+			},
+		},
+		{
 			name: "Two group pairs",
 			input: &ec2.IpPermission{
 				IpProtocol: aws.String("tcp"),
@@ -1256,7 +1311,14 @@ func TestIngressRulesFromSDKType(t *testing.T) {
 					Protocol:               "tcp",
 					FromPort:               10250,
 					ToPort:                 10250,
-					SourceSecurityGroupIDs: []string{"sg-source-1", "sg-source-2"},
+					SourceSecurityGroupIDs: []string{"sg-source-1"},
+				},
+				{
+					Description:            "Kubelet API",
+					Protocol:               "tcp",
+					FromPort:               10250,
+					ToPort:                 10250,
+					SourceSecurityGroupIDs: []string{"sg-source-2"},
 				},
 			},
 		},
@@ -1309,7 +1371,7 @@ func TestIngressRulesFromSDKType(t *testing.T) {
 	}
 }
 
-var processSecurityGroupsPage = func(_, y interface{}) {
+var processSecurityGroupsPage = func(ctx context.Context, _, y interface{}, requestOptions ...request.Option) {
 	funcType := y.(func(out *ec2.DescribeSecurityGroupsOutput, last bool) bool)
 	funcType(&ec2.DescribeSecurityGroupsOutput{
 		SecurityGroups: []*ec2.SecurityGroup{

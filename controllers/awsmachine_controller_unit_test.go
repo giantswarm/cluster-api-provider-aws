@@ -481,7 +481,7 @@ func TestAWSMachineReconciler(t *testing.T) {
 					}
 				})
 
-				t.Run("should tag instances from machine and cluster tags", func(t *testing.T) {
+				t.Run("should tag instances and volumes with machine and cluster tags", func(t *testing.T) {
 					g := NewWithT(t)
 					awsMachine := getAWSMachine()
 					setup(t, g, awsMachine)
@@ -489,26 +489,33 @@ func TestAWSMachineReconciler(t *testing.T) {
 					instanceCreate(t, g)
 					getCoreSecurityGroups(t, g)
 
-					ms.AWSMachine.Spec.AdditionalTags = infrav1.Tags{"kind": "alicorn"}
-					cs.AWSCluster.Spec.AdditionalTags = infrav1.Tags{"colour": "lavender"}
+					ms.AWSMachine.Spec.AdditionalTags = infrav1.Tags{"kind": "alicorn", "colour": "pink"} // takes precedence
+					cs.AWSCluster.Spec.AdditionalTags = infrav1.Tags{"colour": "lavender", "shape": "round"}
 
 					ec2Svc.EXPECT().GetAdditionalSecurityGroupsIDs(gomock.Any()).Return(nil, nil)
-					ec2Svc.EXPECT().UpdateResourceTags(
-						gomock.Any(),
-						map[string]string{
-							"kind": "alicorn",
-						},
-						map[string]string{},
-					).Return(nil).Times(2)
+
+					// expect one call first to tag the instance and two calls for tagging each of two volumes
+					// the volumes get the tags from the AWSCluster _and_ the AWSMachine
 
 					ec2Svc.EXPECT().UpdateResourceTags(
 						PointsTo("myMachine"),
 						map[string]string{
-							"colour": "lavender",
+							"colour": "pink",
+							"shape":  "round",
 							"kind":   "alicorn",
 						},
 						map[string]string{},
 					).Return(nil)
+
+					ec2Svc.EXPECT().UpdateResourceTags(
+						gomock.Any(),
+						map[string]string{
+							"colour": "pink",
+							"shape":  "round",
+							"kind":   "alicorn",
+						},
+						map[string]string{},
+					).Return(nil).Times(2)
 
 					_, err := reconciler.reconcileNormal(context.Background(), ms, cs, cs, cs, cs)
 					g.Expect(err).To(BeNil())
@@ -2560,7 +2567,7 @@ func TestAWSMachineReconcilerReconcileDefaultsToLoadBalancerTypeClassic(t *testi
 		return secretMock
 	}
 
-	ec2Mock.EXPECT().DescribeInstances(gomock.Eq(&ec2.DescribeInstancesInput{
+	ec2Mock.EXPECT().DescribeInstancesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{"two"}),
 	})).Return(&ec2.DescribeInstancesOutput{
 		Reservations: []*ec2.Reservation{
@@ -2592,7 +2599,7 @@ func TestAWSMachineReconcilerReconcileDefaultsToLoadBalancerTypeClassic(t *testi
 	// Must attach to a classic LB, not another type. Only these mock calls are therefore expected.
 	mockedCreateLBCalls(t, elbMock.EXPECT())
 
-	ec2Mock.EXPECT().DescribeNetworkInterfaces(gomock.Eq(&ec2.DescribeNetworkInterfacesInput{Filters: []*ec2.Filter{
+	ec2Mock.EXPECT().DescribeNetworkInterfacesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNetworkInterfacesInput{Filters: []*ec2.Filter{
 		{
 			Name:   aws.String("attachment.instance-id"),
 			Values: aws.StringSlice([]string{"two"}),
@@ -2608,11 +2615,11 @@ func TestAWSMachineReconcilerReconcileDefaultsToLoadBalancerTypeClassic(t *testi
 				},
 			},
 		}}, nil).MaxTimes(3)
-	ec2Mock.EXPECT().DescribeNetworkInterfaceAttribute(gomock.Eq(&ec2.DescribeNetworkInterfaceAttributeInput{
+	ec2Mock.EXPECT().DescribeNetworkInterfaceAttributeWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNetworkInterfaceAttributeInput{
 		NetworkInterfaceId: aws.String("eni-1"),
 		Attribute:          aws.String("groupSet"),
 	})).Return(&ec2.DescribeNetworkInterfaceAttributeOutput{Groups: []*ec2.GroupIdentifier{{GroupId: aws.String("3")}}}, nil).MaxTimes(1)
-	ec2Mock.EXPECT().ModifyNetworkInterfaceAttribute(gomock.Any()).AnyTimes()
+	ec2Mock.EXPECT().ModifyNetworkInterfaceAttributeWithContext(context.TODO(), gomock.Any()).AnyTimes()
 
 	_, err = reconciler.Reconcile(ctx, ctrl.Request{
 		NamespacedName: client.ObjectKey{

@@ -17,6 +17,7 @@ limitations under the License.
 package securitygroup
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
@@ -220,7 +222,7 @@ func (s *Service) describeSecurityGroupOverridesByID() (map[infrav1.SecurityGrou
 		}
 	}
 
-	out, err := s.EC2Client.DescribeSecurityGroups(input)
+	out, err := s.EC2Client.DescribeSecurityGroupsWithContext(context.TODO(), input)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to describe security groups in vpc %q", s.scope.VPC().ID)
 	}
@@ -304,7 +306,7 @@ func (s *Service) deleteSecurityGroup(sg *infrav1.SecurityGroup, typ string) err
 		GroupId: aws.String(sg.ID),
 	}
 
-	if _, err := s.EC2Client.DeleteSecurityGroup(input); awserrors.IsIgnorableSecurityGroupError(err) != nil {
+	if _, err := s.EC2Client.DeleteSecurityGroupWithContext(context.TODO(), input); awserrors.IsIgnorableSecurityGroupError(err) != nil {
 		record.Warnf(s.scope.InfraCluster(), "FailedDeleteSecurityGroup", "Failed to delete %s SecurityGroup %q with name %q: %v", typ, sg.ID, sg.Name, err)
 		return errors.Wrapf(err, "failed to delete security group %q with name %q", sg.ID, sg.Name)
 	}
@@ -325,7 +327,7 @@ func (s *Service) describeClusterOwnedSecurityGroups() ([]infrav1.SecurityGroup,
 
 	groups := []infrav1.SecurityGroup{}
 
-	err := s.EC2Client.DescribeSecurityGroupsPages(input, func(out *ec2.DescribeSecurityGroupsOutput, last bool) bool {
+	err := s.EC2Client.DescribeSecurityGroupsPagesWithContext(context.TODO(), input, func(out *ec2.DescribeSecurityGroupsOutput, last bool) bool {
 		for _, group := range out.SecurityGroups {
 			if group != nil {
 				groups = append(groups, makeInfraSecurityGroup(group))
@@ -347,7 +349,7 @@ func (s *Service) describeSecurityGroupsByName() (map[string]infrav1.SecurityGro
 		},
 	}
 
-	out, err := s.EC2Client.DescribeSecurityGroups(input)
+	out, err := s.EC2Client.DescribeSecurityGroupsWithContext(context.TODO(), input)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to describe security groups in vpc %q", s.scope.VPC().ID)
 	}
@@ -371,7 +373,7 @@ func makeInfraSecurityGroup(ec2sg *ec2.SecurityGroup) infrav1.SecurityGroup {
 
 func (s *Service) createSecurityGroup(role infrav1.SecurityGroupRole, input *ec2.SecurityGroup) error {
 	sgTags := s.getSecurityGroupTagParams(aws.StringValue(input.GroupName), services.TemporaryResourceID, role)
-	out, err := s.EC2Client.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+	out, err := s.EC2Client.CreateSecurityGroupWithContext(context.TODO(), &ec2.CreateSecurityGroupInput{
 		VpcId:       input.VpcId,
 		GroupName:   input.GroupName,
 		Description: aws.String(fmt.Sprintf("Kubernetes cluster %s: %s", s.scope.Name(), role)),
@@ -399,7 +401,7 @@ func (s *Service) authorizeSecurityGroupIngressRules(id string, rules infrav1.In
 		rule := rules[i]
 		input.IpPermissions = append(input.IpPermissions, ingressRuleToSDKType(s.scope, &rule))
 	}
-	if _, err := s.EC2Client.AuthorizeSecurityGroupIngress(input); err != nil {
+	if _, err := s.EC2Client.AuthorizeSecurityGroupIngressWithContext(context.TODO(), input); err != nil {
 		record.Warnf(s.scope.InfraCluster(), "FailedAuthorizeSecurityGroupIngressRules", "Failed to authorize security group ingress rules %v for SecurityGroup %q: %v", rules, id, err)
 		return errors.Wrapf(err, "failed to authorize security group %q ingress rules: %v", id, rules)
 	}
@@ -415,7 +417,7 @@ func (s *Service) revokeSecurityGroupIngressRules(id string, rules infrav1.Ingre
 		input.IpPermissions = append(input.IpPermissions, ingressRuleToSDKType(s.scope, &rule))
 	}
 
-	if _, err := s.EC2Client.RevokeSecurityGroupIngress(input); err != nil {
+	if _, err := s.EC2Client.RevokeSecurityGroupIngressWithContext(context.TODO(), input); err != nil {
 		record.Warnf(s.scope.InfraCluster(), "FailedRevokeSecurityGroupIngressRules", "Failed to revoke security group ingress rules %v for SecurityGroup %q: %v", rules, id, err)
 		return errors.Wrapf(err, "failed to revoke security group %q ingress rules: %v", id, rules)
 	}
@@ -427,7 +429,7 @@ func (s *Service) revokeSecurityGroupIngressRules(id string, rules infrav1.Ingre
 func (s *Service) revokeAllSecurityGroupIngressRules(id string) error {
 	describeInput := &ec2.DescribeSecurityGroupsInput{GroupIds: []*string{aws.String(id)}}
 
-	securityGroups, err := s.EC2Client.DescribeSecurityGroups(describeInput)
+	securityGroups, err := s.EC2Client.DescribeSecurityGroupsWithContext(context.TODO(), describeInput)
 	if err != nil {
 		return err
 	}
@@ -438,7 +440,7 @@ func (s *Service) revokeAllSecurityGroupIngressRules(id string) error {
 				GroupId:       aws.String(id),
 				IpPermissions: sg.IpPermissions,
 			}
-			if _, err := s.EC2Client.RevokeSecurityGroupIngress(revokeInput); err != nil {
+			if _, err := s.EC2Client.RevokeSecurityGroupIngressWithContext(context.TODO(), revokeInput); err != nil {
 				record.Warnf(s.scope.InfraCluster(), "FailedRevokeSecurityGroupIngressRules", "Failed to revoke all security group ingress rules for SecurityGroup %q: %v", *sg.GroupId, err)
 				return err
 			}
@@ -519,20 +521,26 @@ func (s *Service) getSecurityGroupIngressRules(role infrav1.SecurityGroupRole) (
 		if s.scope.Bastion().Enabled {
 			rules = append(rules, s.defaultSSHIngressRule(s.scope.SecurityGroups()[infrav1.SecurityGroupBastion].ID))
 		}
-		if s.scope.ControlPlaneLoadBalancer() != nil {
-			ingressRules := s.scope.ControlPlaneLoadBalancer().IngressRules
-			for i := range ingressRules {
-				if ingressRules[i].SourceSecurityGroupIDs == nil && ingressRules[i].SourceSecurityGroupRoles == nil { // if the rule doesn't have a source security group, use the control plane security group
-					ingressRules[i].SourceSecurityGroupIDs = []string{s.scope.SecurityGroups()[infrav1.SecurityGroupControlPlane].ID}
-					continue
-				}
 
-				for _, sourceSGRole := range ingressRules[i].SourceSecurityGroupRoles {
-					ingressRules[i].SourceSecurityGroupIDs = append(ingressRules[i].SourceSecurityGroupIDs, s.scope.SecurityGroups()[sourceSGRole].ID)
-				}
+		ingressRules := s.scope.AdditionalControlPlaneIngressRules()
+		for i := range ingressRules {
+			if len(ingressRules[i].CidrBlocks) != 0 || len(ingressRules[i].IPv6CidrBlocks) != 0 { // don't set source security group if cidr blocks are set
+				continue
 			}
-			rules = append(rules, s.scope.ControlPlaneLoadBalancer().IngressRules...)
+
+			if len(ingressRules[i].SourceSecurityGroupIDs) == 0 && len(ingressRules[i].SourceSecurityGroupRoles) == 0 { // if the rule doesn't have a source security group, use the control plane security group
+				ingressRules[i].SourceSecurityGroupIDs = []string{s.scope.SecurityGroups()[infrav1.SecurityGroupControlPlane].ID}
+				continue
+			}
+
+			securityGroupIDs := sets.New[string](ingressRules[i].SourceSecurityGroupIDs...)
+			for _, sourceSGRole := range ingressRules[i].SourceSecurityGroupRoles {
+				securityGroupIDs.Insert(s.scope.SecurityGroups()[sourceSGRole].ID)
+			}
+			ingressRules[i].SourceSecurityGroupIDs = sets.List[string](securityGroupIDs)
 		}
+		rules = append(rules, ingressRules...)
+
 		return append(cniRules, rules...), nil
 
 	case infrav1.SecurityGroupNode:
@@ -721,68 +729,63 @@ func ingressRuleToSDKType(scope scope.SGScope, i *infrav1.IngressRule) (res *ec2
 }
 
 func ingressRulesFromSDKType(v *ec2.IpPermission) (res infrav1.IngressRules) {
+	for _, ec2range := range v.IpRanges {
+		rule := ingressRuleFromSDKProtocol(v)
+		if ec2range.Description != nil && *ec2range.Description != "" {
+			rule.Description = *ec2range.Description
+		}
+
+		rule.CidrBlocks = []string{*ec2range.CidrIp}
+		res = append(res, rule)
+	}
+
+	for _, ec2range := range v.Ipv6Ranges {
+		rule := ingressRuleFromSDKProtocol(v)
+		if ec2range.Description != nil && *ec2range.Description != "" {
+			rule.Description = *ec2range.Description
+		}
+
+		rule.IPv6CidrBlocks = []string{*ec2range.CidrIpv6}
+		res = append(res, rule)
+	}
+
+	for _, pair := range v.UserIdGroupPairs {
+		rule := ingressRuleFromSDKProtocol(v)
+		if pair.GroupId == nil {
+			continue
+		}
+
+		if pair.Description != nil && *pair.Description != "" {
+			rule.Description = *pair.Description
+		}
+
+		rule.SourceSecurityGroupIDs = []string{*pair.GroupId}
+		res = append(res, rule)
+	}
+
+	return res
+}
+
+func ingressRuleFromSDKProtocol(v *ec2.IpPermission) infrav1.IngressRule {
 	// Ports are only well-defined for TCP and UDP protocols, but EC2 overloads the port range
 	// in the case of ICMP(v6) traffic to indicate which codes are allowed. For all other protocols,
 	// including the custom "-1" All Traffic protocol, FromPort and ToPort are omitted from the response.
 	// See: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_IpPermission.html
-	var ir infrav1.IngressRule
 	switch *v.IpProtocol {
 	case IPProtocolTCP,
 		IPProtocolUDP,
 		IPProtocolICMP,
 		IPProtocolICMPv6:
-		ir = infrav1.IngressRule{
+		return infrav1.IngressRule{
 			Protocol: infrav1.SecurityGroupProtocol(*v.IpProtocol),
 			FromPort: *v.FromPort,
 			ToPort:   *v.ToPort,
 		}
 	default:
-		ir = infrav1.IngressRule{
+		return infrav1.IngressRule{
 			Protocol: infrav1.SecurityGroupProtocol(*v.IpProtocol),
 		}
 	}
-
-	if len(v.IpRanges) > 0 {
-		r1 := ir
-		for _, ec2range := range v.IpRanges {
-			if ec2range.Description != nil && *ec2range.Description != "" {
-				r1.Description = *ec2range.Description
-			}
-
-			r1.CidrBlocks = append(r1.CidrBlocks, *ec2range.CidrIp)
-		}
-		res = append(res, r1)
-	}
-
-	if len(v.Ipv6Ranges) > 0 {
-		r1 := ir
-		for _, ec2range := range v.Ipv6Ranges {
-			if ec2range.Description != nil && *ec2range.Description != "" {
-				r1.Description = *ec2range.Description
-			}
-
-			r1.IPv6CidrBlocks = append(r1.IPv6CidrBlocks, *ec2range.CidrIpv6)
-		}
-		res = append(res, r1)
-	}
-
-	if len(v.UserIdGroupPairs) > 0 {
-		r2 := ir
-		for _, pair := range v.UserIdGroupPairs {
-			if pair.GroupId == nil {
-				continue
-			}
-
-			if pair.Description != nil && *pair.Description != "" {
-				r2.Description = *pair.Description
-			}
-
-			r2.SourceSecurityGroupIDs = append(r2.SourceSecurityGroupIDs, *pair.GroupId)
-		}
-		res = append(res, r2)
-	}
-
-	return res
 }
 
 // getIngressRulesToAllowKubeletToAccessTheControlPlaneLB returns ingress rules required in the control plane LB.
@@ -793,7 +796,11 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 		return s.getIngressRuleToAllowVPCCidrInTheAPIServer()
 	}
 
+	natGatewaysCidrs := []string{}
 	natGatewaysIPs := s.scope.GetNatGatewaysIPs()
+	for _, ip := range natGatewaysIPs {
+		natGatewaysCidrs = append(natGatewaysCidrs, fmt.Sprintf("%s/32", ip))
+	}
 	if len(natGatewaysIPs) > 0 {
 		return infrav1.IngressRules{
 			{
@@ -801,7 +808,7 @@ func (s *Service) getIngressRulesToAllowKubeletToAccessTheControlPlaneLB() infra
 				Protocol:    infrav1.SecurityGroupProtocolTCP,
 				FromPort:    int64(s.scope.APIServerPort()),
 				ToPort:      int64(s.scope.APIServerPort()),
-				CidrBlocks:  natGatewaysIPs,
+				CidrBlocks:  natGatewaysCidrs,
 			},
 		}
 	}

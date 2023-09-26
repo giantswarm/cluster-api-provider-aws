@@ -532,7 +532,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 }
 
 func mockedDeleteSGCalls(m *mocks.MockEC2APIMockRecorder) {
-	m.DescribeSecurityGroupsPages(gomock.Any(), gomock.Any()).Return(nil)
+	m.DescribeSecurityGroupsPagesWithContext(context.TODO(), gomock.Any(), gomock.Any()).Return(nil)
 }
 
 func createControllerIdentity(g *WithT) *infrav1.AWSClusterControllerIdentity {
@@ -554,7 +554,7 @@ func createControllerIdentity(g *WithT) *infrav1.AWSClusterControllerIdentity {
 }
 
 func mockedDescribeInstanceCall(m *mocks.MockEC2APIMockRecorder) {
-	m.DescribeInstances(gomock.Eq(&ec2.DescribeInstancesInput{
+	m.DescribeInstancesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag:sigs.k8s.io/cluster-api-provider-aws/role"),
@@ -605,12 +605,12 @@ func mockedDescribeInstanceCall(m *mocks.MockEC2APIMockRecorder) {
 }
 
 func mockedDeleteInstanceAndAwaitTerminationCalls(m *mocks.MockEC2APIMockRecorder) {
-	m.TerminateInstances(
+	m.TerminateInstancesWithContext(context.TODO(),
 		gomock.Eq(&ec2.TerminateInstancesInput{
 			InstanceIds: aws.StringSlice([]string{"id-1"}),
 		}),
 	).Return(nil, nil)
-	m.WaitUntilInstanceTerminated(
+	m.WaitUntilInstanceTerminatedWithContext(context.TODO(),
 		gomock.Eq(&ec2.DescribeInstancesInput{
 			InstanceIds: aws.StringSlice([]string{"id-1"}),
 		}),
@@ -618,7 +618,7 @@ func mockedDeleteInstanceAndAwaitTerminationCalls(m *mocks.MockEC2APIMockRecorde
 }
 
 func mockedDeleteInstanceCalls(m *mocks.MockEC2APIMockRecorder) {
-	m.TerminateInstances(
+	m.TerminateInstancesWithContext(context.TODO(),
 		gomock.Eq(&ec2.TerminateInstancesInput{
 			InstanceIds: aws.StringSlice([]string{"id-1"}),
 		}),
@@ -626,7 +626,7 @@ func mockedDeleteInstanceCalls(m *mocks.MockEC2APIMockRecorder) {
 }
 
 func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
-	m.CreateTags(gomock.Eq(&ec2.CreateTagsInput{
+	m.CreateTagsWithContext(context.TODO(), gomock.Eq(&ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{"subnet-1"}),
 		Tags: []*ec2.Tag{
 			{
@@ -639,7 +639,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	})).Return(&ec2.CreateTagsOutput{}, nil)
-	m.CreateTags(gomock.Eq(&ec2.CreateTagsInput{
+	m.CreateTagsWithContext(context.TODO(), gomock.Eq(&ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{"subnet-2"}),
 		Tags: []*ec2.Tag{
 			{
@@ -652,7 +652,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	})).Return(&ec2.CreateTagsOutput{}, nil)
-	m.DescribeSubnets(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.DescribeSubnetsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("state"),
@@ -698,7 +698,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil)
-	m.DescribeRouteTables(gomock.Eq(&ec2.DescribeRouteTablesInput{
+	m.DescribeRouteTablesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -715,7 +715,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil)
-	m.DescribeNatGatewaysPages(gomock.Eq(&ec2.DescribeNatGatewaysInput{
+	m.DescribeNatGatewaysPagesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -726,7 +726,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 				Values: aws.StringSlice([]string{ec2.VpcStatePending, ec2.VpcStateAvailable}),
 			},
 		}}), gomock.Any()).Return(nil)
-	m.DescribeVpcs(gomock.Eq(&ec2.DescribeVpcsInput{
+	m.DescribeVpcsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcsInput{
 		VpcIds: []*string{
 			aws.String("vpc-exists"),
 		},
@@ -761,9 +761,8 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 // mockedCallsForMissingEverything mocks most of the AWSCluster reconciliation calls to the AWS API,
 // except for what other functions provide (see `mockedCreateSGCalls` and `mockedDescribeInstanceCall`).
 func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.MockELBAPIMockRecorder) {
-	m.CreateVpc(gomock.Eq(&ec2.CreateVpcInput{
-		AmazonProvidedIpv6CidrBlock: aws.Bool(false),
-		CidrBlock:                   aws.String("10.0.0.0/8"),
+	m.CreateVpcWithContext(context.TODO(), gomock.Eq(&ec2.CreateVpcInput{
+		CidrBlock: aws.String("10.0.0.0/8"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("vpc"),
@@ -805,21 +804,21 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.DescribeVpcAttribute(gomock.Eq(&ec2.DescribeVpcAttributeInput{
+	m.DescribeVpcAttributeWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcAttributeInput{
 		VpcId:     aws.String("vpc-new"),
 		Attribute: aws.String("enableDnsHostnames"),
 	})).Return(&ec2.DescribeVpcAttributeOutput{
 		EnableDnsHostnames: &ec2.AttributeBooleanValue{Value: aws.Bool(true)},
 	}, nil)
 
-	m.DescribeVpcAttribute(gomock.Eq(&ec2.DescribeVpcAttributeInput{
+	m.DescribeVpcAttributeWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcAttributeInput{
 		VpcId:     aws.String("vpc-new"),
 		Attribute: aws.String("enableDnsSupport"),
 	})).Return(&ec2.DescribeVpcAttributeOutput{
 		EnableDnsSupport: &ec2.AttributeBooleanValue{Value: aws.Bool(true)},
 	}, nil)
 
-	m.DescribeSubnets(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.DescribeSubnetsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("state"),
@@ -833,7 +832,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		Subnets: []*ec2.Subnet{},
 	}, nil)
 
-	m.CreateSubnet(gomock.Eq(&ec2.CreateSubnetInput{
+	m.CreateSubnetWithContext(context.TODO(), gomock.Eq(&ec2.CreateSubnetInput{
 		VpcId:            aws.String("vpc-new"),
 		CidrBlock:        aws.String("10.0.10.0/24"),
 		AvailabilityZone: aws.String("us-east-1a"),
@@ -896,11 +895,11 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilSubnetAvailable(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.WaitUntilSubnetAvailableWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		SubnetIds: aws.StringSlice([]string{"subnet-1"}),
 	})).Return(nil)
 
-	m.CreateSubnet(gomock.Eq(&ec2.CreateSubnetInput{
+	m.CreateSubnetWithContext(context.TODO(), gomock.Eq(&ec2.CreateSubnetInput{
 		VpcId:            aws.String("vpc-new"),
 		CidrBlock:        aws.String("10.0.11.0/24"),
 		AvailabilityZone: aws.String("us-east-1a"),
@@ -963,18 +962,18 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilSubnetAvailable(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.WaitUntilSubnetAvailableWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		SubnetIds: aws.StringSlice([]string{"subnet-2"}),
 	})).Return(nil)
 
-	m.ModifySubnetAttribute(gomock.Eq(&ec2.ModifySubnetAttributeInput{
+	m.ModifySubnetAttributeWithContext(context.TODO(), gomock.Eq(&ec2.ModifySubnetAttributeInput{
 		SubnetId: aws.String("subnet-2"),
 		MapPublicIpOnLaunch: &ec2.AttributeBooleanValue{
 			Value: aws.Bool(true),
 		},
 	})).Return(&ec2.ModifySubnetAttributeOutput{}, nil)
 
-	m.DescribeRouteTables(gomock.Eq(&ec2.DescribeRouteTablesInput{
+	m.DescribeRouteTablesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -996,7 +995,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil).MinTimes(1).MaxTimes(2)
 
-	m.DescribeInternetGateways(gomock.Eq(&ec2.DescribeInternetGatewaysInput{
+	m.DescribeInternetGatewaysWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("attachment.vpc-id"),
@@ -1007,7 +1006,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		InternetGateways: []*ec2.InternetGateway{},
 	}, nil)
 
-	m.CreateInternetGateway(gomock.AssignableToTypeOf(&ec2.CreateInternetGatewayInput{})).
+	m.CreateInternetGatewayWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.CreateInternetGatewayInput{})).
 		Return(&ec2.CreateInternetGatewayOutput{
 			InternetGateway: &ec2.InternetGateway{
 				InternetGatewayId: aws.String("igw-1"),
@@ -1028,13 +1027,13 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			},
 		}, nil)
 
-	m.AttachInternetGateway(gomock.Eq(&ec2.AttachInternetGatewayInput{
+	m.AttachInternetGatewayWithContext(context.TODO(), gomock.Eq(&ec2.AttachInternetGatewayInput{
 		InternetGatewayId: aws.String("igw-1"),
 		VpcId:             aws.String("vpc-new"),
 	})).
 		Return(&ec2.AttachInternetGatewayOutput{}, nil)
 
-	m.DescribeNatGatewaysPages(gomock.Eq(&ec2.DescribeNatGatewaysInput{
+	m.DescribeNatGatewaysPagesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1046,7 +1045,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			},
 		}}), gomock.Any()).Return(nil).MinTimes(1).MaxTimes(2)
 
-	m.DescribeAddresses(gomock.Eq(&ec2.DescribeAddressesInput{
+	m.DescribeAddressesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -1061,7 +1060,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		Addresses: []*ec2.Address{},
 	}, nil)
 
-	m.AllocateAddress(gomock.Eq(&ec2.AllocateAddressInput{
+	m.AllocateAddressWithContext(context.TODO(), gomock.Eq(&ec2.AllocateAddressInput{
 		Domain: aws.String("vpc"),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -1086,7 +1085,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		AllocationId: aws.String("1234"),
 	}, nil)
 
-	m.CreateNatGateway(gomock.Eq(&ec2.CreateNatGatewayInput{
+	m.CreateNatGatewayWithContext(context.TODO(), gomock.Eq(&ec2.CreateNatGatewayInput{
 		AllocationId: aws.String("1234"),
 		SubnetId:     aws.String("subnet-2"),
 		TagSpecifications: []*ec2.TagSpecification{
@@ -1115,11 +1114,11 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.WaitUntilNatGatewayAvailable(&ec2.DescribeNatGatewaysInput{
+	m.WaitUntilNatGatewayAvailableWithContext(context.TODO(), &ec2.DescribeNatGatewaysInput{
 		NatGatewayIds: []*string{aws.String("nat-01")},
 	}).Return(nil)
 
-	m.CreateRouteTable(gomock.Eq(&ec2.CreateRouteTableInput{
+	m.CreateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteTableInput{
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("route-table"),
@@ -1150,18 +1149,18 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.CreateRoute(gomock.Eq(&ec2.CreateRouteInput{
+	m.CreateRouteWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteInput{
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),
 		NatGatewayId:         aws.String("nat-01"),
 		RouteTableId:         aws.String("rtb-1"),
 	})).Return(&ec2.CreateRouteOutput{}, nil)
 
-	m.AssociateRouteTable(gomock.Eq(&ec2.AssociateRouteTableInput{
+	m.AssociateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.AssociateRouteTableInput{
 		RouteTableId: aws.String("rtb-1"),
 		SubnetId:     aws.String("subnet-1"),
 	})).Return(&ec2.AssociateRouteTableOutput{}, nil)
 
-	m.CreateRouteTable(gomock.Eq(&ec2.CreateRouteTableInput{
+	m.CreateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteTableInput{
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String("route-table"),
@@ -1192,13 +1191,13 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 		},
 	}, nil)
 
-	m.CreateRoute(gomock.Eq(&ec2.CreateRouteInput{
+	m.CreateRouteWithContext(context.TODO(), gomock.Eq(&ec2.CreateRouteInput{
 		DestinationCidrBlock: aws.String("0.0.0.0/0"),
 		GatewayId:            aws.String("igw-1"),
 		RouteTableId:         aws.String("rtb-2"),
 	})).Return(&ec2.CreateRouteOutput{}, nil)
 
-	m.AssociateRouteTable(gomock.Eq(&ec2.AssociateRouteTableInput{
+	m.AssociateRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.AssociateRouteTableInput{
 		RouteTableId: aws.String("rtb-2"),
 		SubnetId:     aws.String("subnet-2"),
 	})).Return(&ec2.AssociateRouteTableOutput{}, nil)
@@ -1253,11 +1252,11 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 }
 
 func mockedCreateMaximumVPCCalls(m *mocks.MockEC2APIMockRecorder) {
-	m.CreateVpc(gomock.AssignableToTypeOf(&ec2.CreateVpcInput{})).Return(nil, errors.New("The maximum number of VPCs has been reached"))
+	m.CreateVpcWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.CreateVpcInput{})).Return(nil, errors.New("The maximum number of VPCs has been reached"))
 }
 
 func mockedDeleteVPCCallsForNonExistentVPC(m *mocks.MockEC2APIMockRecorder) {
-	m.DescribeSubnets(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.DescribeSubnetsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("state"),
@@ -1270,7 +1269,7 @@ func mockedDeleteVPCCallsForNonExistentVPC(m *mocks.MockEC2APIMockRecorder) {
 		}})).Return(&ec2.DescribeSubnetsOutput{
 		Subnets: []*ec2.Subnet{},
 	}, nil).AnyTimes()
-	m.DescribeRouteTables(gomock.Eq(&ec2.DescribeRouteTablesInput{
+	m.DescribeRouteTablesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeRouteTablesInput{
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("vpc-id"),
 			Values: aws.StringSlice([]string{""}),
@@ -1281,7 +1280,7 @@ func mockedDeleteVPCCallsForNonExistentVPC(m *mocks.MockEC2APIMockRecorder) {
 			},
 		}})).Return(&ec2.DescribeRouteTablesOutput{
 		RouteTables: []*ec2.RouteTable{}}, nil).AnyTimes()
-	m.DescribeInternetGateways(gomock.Eq(&ec2.DescribeInternetGatewaysInput{
+	m.DescribeInternetGatewaysWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("attachment.vpc-id"),
@@ -1291,7 +1290,7 @@ func mockedDeleteVPCCallsForNonExistentVPC(m *mocks.MockEC2APIMockRecorder) {
 	})).Return(&ec2.DescribeInternetGatewaysOutput{
 		InternetGateways: []*ec2.InternetGateway{},
 	}, nil)
-	m.DescribeNatGatewaysPages(gomock.Eq(&ec2.DescribeNatGatewaysInput{
+	m.DescribeNatGatewaysPagesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1299,19 +1298,19 @@ func mockedDeleteVPCCallsForNonExistentVPC(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}), gomock.Any()).Return(nil).AnyTimes()
-	m.DescribeAddresses(gomock.Eq(&ec2.DescribeAddressesInput{
+	m.DescribeAddressesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
 				Values: aws.StringSlice([]string{"sigs.k8s.io/cluster-api-provider-aws/cluster/test-cluster"}),
 			}},
 	})).Return(nil, nil)
-	m.DeleteVpc(gomock.AssignableToTypeOf(&ec2.DeleteVpcInput{
+	m.DeleteVpcWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DeleteVpcInput{
 		VpcId: aws.String("vpc-exists")})).Return(nil, nil)
 }
 
 func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
-	m.DescribeSubnets(gomock.Eq(&ec2.DescribeSubnetsInput{
+	m.DescribeSubnetsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSubnetsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("state"),
@@ -1332,7 +1331,7 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil).AnyTimes()
-	m.DescribeRouteTables(gomock.Eq(&ec2.DescribeRouteTablesInput{
+	m.DescribeRouteTablesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeRouteTablesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1354,10 +1353,10 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil).AnyTimes()
-	m.DeleteRouteTable(gomock.Eq(&ec2.DeleteRouteTableInput{
+	m.DeleteRouteTableWithContext(context.TODO(), gomock.Eq(&ec2.DeleteRouteTableInput{
 		RouteTableId: aws.String("rt-12345"),
 	}))
-	m.DescribeInternetGateways(gomock.Eq(&ec2.DescribeInternetGatewaysInput{
+	m.DescribeInternetGatewaysWithContext(context.TODO(), gomock.Eq(&ec2.DescribeInternetGatewaysInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("attachment.vpc-id"),
@@ -1372,14 +1371,14 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil)
-	m.DetachInternetGateway(gomock.Eq(&ec2.DetachInternetGatewayInput{
+	m.DetachInternetGatewayWithContext(context.TODO(), gomock.Eq(&ec2.DetachInternetGatewayInput{
 		VpcId:             aws.String("vpc-exists"),
 		InternetGatewayId: aws.String("ig-12345"),
 	}))
-	m.DeleteInternetGateway(gomock.Eq(&ec2.DeleteInternetGatewayInput{
+	m.DeleteInternetGatewayWithContext(context.TODO(), gomock.Eq(&ec2.DeleteInternetGatewayInput{
 		InternetGatewayId: aws.String("ig-12345"),
 	}))
-	m.DescribeNatGatewaysPages(gomock.Eq(&ec2.DescribeNatGatewaysInput{
+	m.DescribeNatGatewaysPagesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeNatGatewaysInput{
 		Filter: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1390,7 +1389,7 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 				Values: aws.StringSlice([]string{ec2.VpcStatePending, ec2.VpcStateAvailable}),
 			},
 		}}), gomock.Any()).Return(nil).AnyTimes()
-	m.DescribeAddresses(gomock.Eq(&ec2.DescribeAddressesInput{
+	m.DescribeAddressesWithContext(context.TODO(), gomock.Eq(&ec2.DescribeAddressesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -1405,13 +1404,13 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 			},
 		},
 	}, nil)
-	m.DisassociateAddress(&ec2.DisassociateAddressInput{
+	m.DisassociateAddressWithContext(context.TODO(), &ec2.DisassociateAddressInput{
 		AssociationId: aws.String("1234"),
 	})
-	m.ReleaseAddress(&ec2.ReleaseAddressInput{
+	m.ReleaseAddressWithContext(context.TODO(), &ec2.ReleaseAddressInput{
 		AllocationId: aws.String("1234"),
 	})
-	m.DescribeVpcs(gomock.Eq(&ec2.DescribeVpcsInput{
+	m.DescribeVpcsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeVpcsInput{
 		VpcIds: []*string{
 			aws.String("vpc-exists"),
 		},
@@ -1445,16 +1444,16 @@ func mockedDeleteVPCCalls(m *mocks.MockEC2APIMockRecorder) {
 				},
 			},
 		}, nil)
-	m.DeleteSubnet(gomock.Eq(&ec2.DeleteSubnetInput{
+	m.DeleteSubnetWithContext(context.TODO(), gomock.Eq(&ec2.DeleteSubnetInput{
 		SubnetId: aws.String("subnet-1"),
 	}))
-	m.DeleteVpc(gomock.Eq(&ec2.DeleteVpcInput{
+	m.DeleteVpcWithContext(context.TODO(), gomock.Eq(&ec2.DeleteVpcInput{
 		VpcId: aws.String("vpc-exists"),
 	}))
 }
 
 func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockRecorder) {
-	m.DescribeSecurityGroups(gomock.Eq(&ec2.DescribeSecurityGroupsInput{
+	m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.Eq(&ec2.DescribeSecurityGroupsInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("vpc-id"),
@@ -1474,7 +1473,7 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 				},
 			},
 		}, nil)
-	m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+	m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(vpcId),
 		GroupName:   aws.String("test-cluster-bastion"),
 		Description: aws.String("Kubernetes cluster test-cluster: bastion"),
@@ -1499,7 +1498,7 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 		},
 	})).
 		Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-bastion")}, nil)
-	m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+	m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(vpcId),
 		GroupName:   aws.String("test-cluster-apiserver-lb"),
 		Description: aws.String("Kubernetes cluster test-cluster: apiserver-lb"),
@@ -1524,7 +1523,7 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 		},
 	})).
 		Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-apiserver-lb")}, nil)
-	m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+	m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(vpcId),
 		GroupName:   aws.String("test-cluster-lb"),
 		Description: aws.String("Kubernetes cluster test-cluster: lb"),
@@ -1553,7 +1552,7 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 		},
 	})).
 		Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-lb")}, nil)
-	securityGroupControl := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+	securityGroupControl := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(vpcId),
 		GroupName:   aws.String("test-cluster-controlplane"),
 		Description: aws.String("Kubernetes cluster test-cluster: controlplane"),
@@ -1578,7 +1577,7 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 		},
 	})).
 		Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-controlplane")}, nil)
-	securityGroupNode := m.CreateSecurityGroup(gomock.Eq(&ec2.CreateSecurityGroupInput{
+	securityGroupNode := m.CreateSecurityGroupWithContext(context.TODO(), gomock.Eq(&ec2.CreateSecurityGroupInput{
 		VpcId:       aws.String(vpcId),
 		GroupName:   aws.String("test-cluster-node"),
 		Description: aws.String("Kubernetes cluster test-cluster: node"),
@@ -1603,18 +1602,18 @@ func mockedCreateSGCalls(recordLBV2 bool, vpcId string, m *mocks.MockEC2APIMockR
 		},
 	})).
 		Return(&ec2.CreateSecurityGroupOutput{GroupId: aws.String("sg-node")}, nil)
-	m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+	m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId: aws.String("sg-controlplane"),
 	})).
 		Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 		After(securityGroupControl).Times(2)
-	m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+	m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId: aws.String("sg-node"),
 	})).
 		Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
 		After(securityGroupNode).Times(2)
 	if recordLBV2 {
-		m.AuthorizeSecurityGroupIngress(gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
+		m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 			GroupId: aws.String("sg-lb"),
 		})).
 			Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, nil).
