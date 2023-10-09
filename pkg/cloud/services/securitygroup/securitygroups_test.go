@@ -17,7 +17,6 @@ limitations under the License.
 package securitygroup
 
 import (
-	"reflect"
 	"strings"
 	"testing"
 
@@ -619,13 +618,13 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 
 	testCases := []struct {
 		name                         string
-		controlPlaneLBSpec           *infrav1.AWSLoadBalancerSpec
+		networkSpec                  infrav1.NetworkSpec
 		expectedAdditionalIngresRule infrav1.IngressRule
 	}{
 		{
 			name: "default control plane security group is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description: "test",
 						Protocol:    infrav1.SecurityGroupProtocolTCP,
@@ -644,8 +643,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:            "test",
 						Protocol:               infrav1.SecurityGroupProtocolTCP,
@@ -665,8 +664,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -686,8 +685,8 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 		},
 		{
 			name: "another security group role and a custom security group id is used",
-			controlPlaneLBSpec: &infrav1.AWSLoadBalancerSpec{
-				IngressRules: []infrav1.IngressRule{
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
 					{
 						Description:              "test",
 						Protocol:                 infrav1.SecurityGroupProtocolTCP,
@@ -706,6 +705,26 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 				SourceSecurityGroupIDs: []string{"test", "node-sg-id"},
 			},
 		},
+		{
+			name: "don't set source security groups if cidr blocks are set",
+			networkSpec: infrav1.NetworkSpec{
+				AdditionalControlPlaneIngressRules: []infrav1.IngressRule{
+					{
+						Description: "test",
+						Protocol:    infrav1.SecurityGroupProtocolTCP,
+						FromPort:    9345,
+						ToPort:      9345,
+						CidrBlocks:  []string{"test-cidr-block"},
+					},
+				},
+			},
+			expectedAdditionalIngresRule: infrav1.IngressRule{
+				Description: "test",
+				Protocol:    infrav1.SecurityGroupProtocolTCP,
+				FromPort:    9345,
+				ToPort:      9345,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -717,7 +736,7 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 				},
 				AWSCluster: &infrav1.AWSCluster{
 					Spec: infrav1.AWSClusterSpec{
-						ControlPlaneLoadBalancer: tc.controlPlaneLBSpec,
+						NetworkSpec: tc.networkSpec,
 					},
 					Status: infrav1.AWSClusterStatus{
 						Network: infrav1.NetworkStatus{
@@ -760,7 +779,7 @@ func TestAdditionalControlPlaneSecurityGroup(t *testing.T) {
 						t.Fatalf("Expected to port %d, got %d", tc.expectedAdditionalIngresRule.ToPort, r.ToPort)
 					}
 
-					if !reflect.DeepEqual(r.SourceSecurityGroupIDs, tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs) {
+					if !sets.New[string](tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs...).Equal(sets.New[string](tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs...)) {
 						t.Fatalf("Expected source security group IDs %v, got %v", tc.expectedAdditionalIngresRule.SourceSecurityGroupIDs, r.SourceSecurityGroupIDs)
 					}
 				}
@@ -852,7 +871,7 @@ func TestControlPlaneLoadBalancerIngressRules(t *testing.T) {
 					Protocol:    infrav1.SecurityGroupProtocolTCP,
 					FromPort:    6443,
 					ToPort:      6443,
-					CidrBlocks:  []string{"1.2.3.4"},
+					CidrBlocks:  []string{"1.2.3.4/32"},
 				},
 				infrav1.IngressRule{
 					Description: "Kubernetes API",
@@ -896,7 +915,7 @@ func TestControlPlaneLoadBalancerIngressRules(t *testing.T) {
 					Protocol:    infrav1.SecurityGroupProtocolTCP,
 					FromPort:    6443,
 					ToPort:      6443,
-					CidrBlocks:  []string{"1.2.3.4"},
+					CidrBlocks:  []string{"1.2.3.4/32"},
 				},
 				infrav1.IngressRule{
 					Description: "My custom ingress rule",
@@ -1187,17 +1206,13 @@ func TestDeleteSecurityGroups(t *testing.T) {
 			g.Expect(infrav1.AddToScheme(scheme)).NotTo(HaveOccurred())
 
 			awsCluster := &infrav1.AWSCluster{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: infrav1.GroupVersion.String(),
-					Kind:       "AWSCluster",
-				},
 				ObjectMeta: metav1.ObjectMeta{Name: "test"},
 				Spec: infrav1.AWSClusterSpec{
 					NetworkSpec: *tc.input,
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(awsCluster).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(awsCluster).WithStatusSubresource(awsCluster).Build()
 
 			cs, err := scope.NewClusterScope(scope.ClusterScopeParams{
 				Client: client,
@@ -1232,6 +1247,40 @@ func TestIngressRulesFromSDKType(t *testing.T) {
 		expected infrav1.IngressRules
 	}{
 		{
+			name: "two ingress rules",
+			input: &ec2.IpPermission{
+				IpProtocol: aws.String("tcp"),
+				FromPort:   aws.Int64(6443),
+				ToPort:     aws.Int64(6443),
+				IpRanges: []*ec2.IpRange{
+					{
+						CidrIp:      aws.String("0.0.0.0/0"),
+						Description: aws.String("Kubernetes API"),
+					},
+					{
+						CidrIp:      aws.String("192.168.1.1/32"),
+						Description: aws.String("My VPN"),
+					},
+				},
+			},
+			expected: infrav1.IngressRules{
+				{
+					Description: "Kubernetes API",
+					Protocol:    "tcp",
+					FromPort:    6443,
+					ToPort:      6443,
+					CidrBlocks:  []string{"0.0.0.0/0"},
+				},
+				{
+					Description: "My VPN",
+					Protocol:    "tcp",
+					FromPort:    6443,
+					ToPort:      6443,
+					CidrBlocks:  []string{"192.168.1.1/32"},
+				},
+			},
+		},
+		{
 			name: "Two group pairs",
 			input: &ec2.IpPermission{
 				IpProtocol: aws.String("tcp"),
@@ -1256,7 +1305,14 @@ func TestIngressRulesFromSDKType(t *testing.T) {
 					Protocol:               "tcp",
 					FromPort:               10250,
 					ToPort:                 10250,
-					SourceSecurityGroupIDs: []string{"sg-source-1", "sg-source-2"},
+					SourceSecurityGroupIDs: []string{"sg-source-1"},
+				},
+				{
+					Description:            "Kubelet API",
+					Protocol:               "tcp",
+					FromPort:               10250,
+					ToPort:                 10250,
+					SourceSecurityGroupIDs: []string{"sg-source-2"},
 				},
 			},
 		},

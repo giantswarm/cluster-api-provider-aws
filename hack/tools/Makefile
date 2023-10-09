@@ -45,7 +45,7 @@ ifeq ($(OS), windows)
 	MDBOOK_EXTRACT_COMMAND := unzip -d /tmp
 endif
 
-GOLANGCI_LINT_VERSION := v1.52.2
+GOLANGCI_LINT_VERSION := v1.53.3
 ## --------------------------------------
 ## Tooling Binaries
 ## --------------------------------------
@@ -154,7 +154,7 @@ $(PLANTUML): plantuml.Dockerfile ../../versions.mk
 KPROMO_BIN := kpromo
 KPROMO :=  $(BIN_DIR)/$(KPROMO_BIN)
 $(KPROMO):
-	CGO_ENABLED=0 go build -o $@ sigs.k8s.io/promo-tools/v3/cmd/kpromo
+	CGO_ENABLED=0 go build -o $@ sigs.k8s.io/promo-tools/v4/cmd/kpromo
 
 YQ_BIN := yq
 YQ :=  $(BIN_DIR)/$(YQ_BIN)
