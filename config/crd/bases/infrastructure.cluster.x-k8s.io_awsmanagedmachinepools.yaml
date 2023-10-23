@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: awsmanagedmachinepools.infrastructure.cluster.x-k8s.io
 spec:
   group: infrastructure.cluster.x-k8s.io
@@ -518,6 +517,14 @@ spec:
                   no version number is supplied then the latest version for the Kubernetes
                   version will be used
                 minLength: 2
+                type: string
+              availabilityZoneSubnetType:
+                description: AvailabilityZoneSubnetType specifies which type of subnets
+                  to use when an availability zone is specified.
+                enum:
+                - public
+                - private
+                - all
                 type: string
               availabilityZones:
                 description: AvailabilityZones is an array of availability zones instances

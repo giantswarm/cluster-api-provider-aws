@@ -485,11 +485,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*v1beta2.S3Bucket)(nil), (*S3Bucket)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(a.(*v1beta2.S3Bucket), b.(*S3Bucket), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*SecurityGroup)(nil), (*v1beta2.SecurityGroup)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_SecurityGroup_To_v1beta2_SecurityGroup(a.(*SecurityGroup), b.(*v1beta2.SecurityGroup), scope)
 	}); err != nil {
@@ -512,11 +507,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*SubnetSpec)(nil), (*v1beta2.SubnetSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta1_SubnetSpec_To_v1beta2_SubnetSpec(a.(*SubnetSpec), b.(*v1beta2.SubnetSpec), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*v1beta2.SubnetSpec)(nil), (*SubnetSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(a.(*v1beta2.SubnetSpec), b.(*SubnetSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -592,6 +582,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddConversionFunc((*v1beta2.NetworkStatus)(nil), (*NetworkStatus)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1beta2_NetworkStatus_To_v1beta1_NetworkStatus(a.(*v1beta2.NetworkStatus), b.(*NetworkStatus), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta2.S3Bucket)(nil), (*S3Bucket)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(a.(*v1beta2.S3Bucket), b.(*S3Bucket), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddConversionFunc((*v1beta2.SubnetSpec)(nil), (*SubnetSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(a.(*v1beta2.SubnetSpec), b.(*SubnetSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -897,7 +897,15 @@ func autoConvert_v1beta1_AWSClusterSpec_To_v1beta2_AWSClusterSpec(in *AWSCluster
 		return err
 	}
 	out.IdentityRef = (*v1beta2.AWSIdentityReference)(unsafe.Pointer(in.IdentityRef))
-	out.S3Bucket = (*v1beta2.S3Bucket)(unsafe.Pointer(in.S3Bucket))
+	if in.S3Bucket != nil {
+		in, out := &in.S3Bucket, &out.S3Bucket
+		*out = new(v1beta2.S3Bucket)
+		if err := Convert_v1beta1_S3Bucket_To_v1beta2_S3Bucket(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.S3Bucket = nil
+	}
 	return nil
 }
 
@@ -931,7 +939,15 @@ func autoConvert_v1beta2_AWSClusterSpec_To_v1beta1_AWSClusterSpec(in *v1beta2.AW
 		return err
 	}
 	out.IdentityRef = (*AWSIdentityReference)(unsafe.Pointer(in.IdentityRef))
-	out.S3Bucket = (*S3Bucket)(unsafe.Pointer(in.S3Bucket))
+	if in.S3Bucket != nil {
+		in, out := &in.S3Bucket, &out.S3Bucket
+		*out = new(S3Bucket)
+		if err := Convert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.S3Bucket = nil
+	}
 	return nil
 }
 
@@ -1219,6 +1235,7 @@ func autoConvert_v1beta2_AWSLoadBalancerSpec_To_v1beta1_AWSLoadBalancerSpec(in *
 	out.Subnets = *(*[]string)(unsafe.Pointer(&in.Subnets))
 	out.HealthCheckProtocol = (*ClassicELBProtocol)(unsafe.Pointer(in.HealthCheckProtocol))
 	out.AdditionalSecurityGroups = *(*[]string)(unsafe.Pointer(&in.AdditionalSecurityGroups))
+	// WARNING: in.AdditionalListeners requires manual conversion: does not exist in peer-type
 	// WARNING: in.IngressRules requires manual conversion: does not exist in peer-type
 	// WARNING: in.LoadBalancerType requires manual conversion: does not exist in peer-type
 	// WARNING: in.DisableHostsRewrite requires manual conversion: does not exist in peer-type
@@ -2000,7 +2017,17 @@ func autoConvert_v1beta1_NetworkSpec_To_v1beta2_NetworkSpec(in *NetworkSpec, out
 	if err := Convert_v1beta1_VPCSpec_To_v1beta2_VPCSpec(&in.VPC, &out.VPC, s); err != nil {
 		return err
 	}
-	out.Subnets = *(*v1beta2.Subnets)(unsafe.Pointer(&in.Subnets))
+	if in.Subnets != nil {
+		in, out := &in.Subnets, &out.Subnets
+		*out = make(v1beta2.Subnets, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta1_SubnetSpec_To_v1beta2_SubnetSpec(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Subnets = nil
+	}
 	out.CNI = (*v1beta2.CNISpec)(unsafe.Pointer(in.CNI))
 	out.SecurityGroupOverrides = *(*map[v1beta2.SecurityGroupRole]string)(unsafe.Pointer(&in.SecurityGroupOverrides))
 	return nil
@@ -2015,7 +2042,17 @@ func autoConvert_v1beta2_NetworkSpec_To_v1beta1_NetworkSpec(in *v1beta2.NetworkS
 	if err := Convert_v1beta2_VPCSpec_To_v1beta1_VPCSpec(&in.VPC, &out.VPC, s); err != nil {
 		return err
 	}
-	out.Subnets = *(*Subnets)(unsafe.Pointer(&in.Subnets))
+	if in.Subnets != nil {
+		in, out := &in.Subnets, &out.Subnets
+		*out = make(Subnets, len(*in))
+		for i := range *in {
+			if err := Convert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Subnets = nil
+	}
 	out.CNI = (*CNISpec)(unsafe.Pointer(in.CNI))
 	out.SecurityGroupOverrides = *(*map[SecurityGroupRole]string)(unsafe.Pointer(&in.SecurityGroupOverrides))
 	// WARNING: in.AdditionalControlPlaneIngressRules requires manual conversion: does not exist in peer-type
@@ -2103,13 +2140,9 @@ func Convert_v1beta1_S3Bucket_To_v1beta2_S3Bucket(in *S3Bucket, out *v1beta2.S3B
 func autoConvert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(in *v1beta2.S3Bucket, out *S3Bucket, s conversion.Scope) error {
 	out.ControlPlaneIAMInstanceProfile = in.ControlPlaneIAMInstanceProfile
 	out.NodesIAMInstanceProfiles = *(*[]string)(unsafe.Pointer(&in.NodesIAMInstanceProfiles))
+	// WARNING: in.PresignedURLDuration requires manual conversion: does not exist in peer-type
 	out.Name = in.Name
 	return nil
-}
-
-// Convert_v1beta2_S3Bucket_To_v1beta1_S3Bucket is an autogenerated conversion function.
-func Convert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(in *v1beta2.S3Bucket, out *S3Bucket, s conversion.Scope) error {
-	return autoConvert_v1beta2_S3Bucket_To_v1beta1_S3Bucket(in, out, s)
 }
 
 func autoConvert_v1beta1_SecurityGroup_To_v1beta2_SecurityGroup(in *SecurityGroup, out *v1beta2.SecurityGroup, s conversion.Scope) error {
@@ -2198,6 +2231,7 @@ func Convert_v1beta1_SubnetSpec_To_v1beta2_SubnetSpec(in *SubnetSpec, out *v1bet
 
 func autoConvert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(in *v1beta2.SubnetSpec, out *SubnetSpec, s conversion.Scope) error {
 	out.ID = in.ID
+	// WARNING: in.ResourceID requires manual conversion: does not exist in peer-type
 	out.CidrBlock = in.CidrBlock
 	out.IPv6CidrBlock = in.IPv6CidrBlock
 	out.AvailabilityZone = in.AvailabilityZone
@@ -2207,11 +2241,6 @@ func autoConvert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(in *v1beta2.SubnetSpec
 	out.NatGatewayID = (*string)(unsafe.Pointer(in.NatGatewayID))
 	out.Tags = *(*Tags)(unsafe.Pointer(&in.Tags))
 	return nil
-}
-
-// Convert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec is an autogenerated conversion function.
-func Convert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(in *v1beta2.SubnetSpec, out *SubnetSpec, s conversion.Scope) error {
-	return autoConvert_v1beta2_SubnetSpec_To_v1beta1_SubnetSpec(in, out, s)
 }
 
 func autoConvert_v1beta1_VPCSpec_To_v1beta2_VPCSpec(in *VPCSpec, out *v1beta2.VPCSpec, s conversion.Scope) error {

@@ -99,7 +99,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 			}
 			err := testEnv.Get(ctx, key, cluster)
 			return err == nil
-		}, 10*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(BeTrue())
 
 		defer teardown()
 		defer t.Cleanup(func() {
@@ -198,7 +198,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 			}
 			err := testEnv.Get(ctx, key, cluster)
 			return err == nil
-		}, 10*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(BeTrue())
 
 		defer teardown()
 		defer t.Cleanup(func() {
@@ -269,7 +269,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 		ec2Mock := mocks.NewMockEC2API(mockCtrl)
 		elbMock := mocks.NewMockELBAPI(mockCtrl)
 		expect := func(m *mocks.MockEC2APIMockRecorder, e *mocks.MockELBAPIMockRecorder) {
-			mockedCallsForMissingEverything(m, e)
+			mockedCallsForMissingEverything(m, e, "my-managed-subnet-priv", "my-managed-subnet-pub")
 			mockedCreateSGCalls(false, "vpc-new", m)
 			mockedDescribeInstanceCall(m)
 		}
@@ -287,8 +287,8 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 
 		// Make controller manage resources
 		awsCluster.Spec.NetworkSpec.VPC.ID = ""
-		awsCluster.Spec.NetworkSpec.Subnets[0].ID = ""
-		awsCluster.Spec.NetworkSpec.Subnets[1].ID = ""
+		awsCluster.Spec.NetworkSpec.Subnets[0].ID = "my-managed-subnet-priv"
+		awsCluster.Spec.NetworkSpec.Subnets[1].ID = "my-managed-subnet-pub"
 
 		// NAT gateway of the public subnet will be accessed by the private subnet in the same zone,
 		// so use same zone for the 2 test subnets
@@ -358,13 +358,15 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 		// reconciliation functionality will always work on the latest-known status of AWS cloud resources.
 
 		// Private subnet
-		g.Expect(cs.Subnets()[0].ID).To(Equal("subnet-1"))
+		g.Expect(cs.Subnets()[0].ID).To(Equal("my-managed-subnet-priv"))
+		g.Expect(cs.Subnets()[0].ResourceID).To(Equal("subnet-1"))
 		g.Expect(cs.Subnets()[0].IsPublic).To(Equal(false))
 		g.Expect(cs.Subnets()[0].NatGatewayID).To(BeNil())
 		g.Expect(cs.Subnets()[0].RouteTableID).To(Equal(aws.String("rtb-1")))
 
 		// Public subnet
-		g.Expect(cs.Subnets()[1].ID).To(Equal("subnet-2"))
+		g.Expect(cs.Subnets()[1].ID).To(Equal("my-managed-subnet-pub"))
+		g.Expect(cs.Subnets()[1].ResourceID).To(Equal("subnet-2"))
 		g.Expect(cs.Subnets()[1].IsPublic).To(Equal(true))
 		g.Expect(cs.Subnets()[1].NatGatewayID).To(Equal(aws.String("nat-01")))
 		g.Expect(cs.Subnets()[1].RouteTableID).To(Equal(aws.String("rtb-2")))
@@ -410,7 +412,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 			}
 			err := testEnv.Get(ctx, key, cluster)
 			return err == nil
-		}, 10*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(BeTrue())
 		defer t.Cleanup(func() {
 			g.Expect(testEnv.Cleanup(ctx, &awsCluster, controllerIdentity, ns)).To(Succeed())
 		})
@@ -440,7 +442,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 		_, err = reconciler.reconcileNormal(cs)
 		g.Expect(err.Error()).To(ContainSubstring("The maximum number of VPCs has been reached"))
 
-		_, err = reconciler.reconcileDelete(ctx, cs)
+		err = reconciler.reconcileDelete(ctx, cs)
 		g.Expect(err).To(BeNil())
 	})
 	t.Run("Should successfully delete AWSCluster with managed VPC", func(t *testing.T) {
@@ -475,7 +477,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 			}
 			err := testEnv.Get(ctx, key, cluster)
 			return err == nil
-		}, 10*time.Second).Should(Equal(true))
+		}, 10*time.Second).Should(BeTrue())
 
 		defer t.Cleanup(func() {
 			g.Expect(testEnv.Cleanup(ctx, &awsCluster, controllerIdentity, ns)).To(Succeed())
@@ -517,7 +519,7 @@ func TestAWSClusterReconcilerIntegrationTests(t *testing.T) {
 			return sgSvc
 		}
 
-		_, err = reconciler.reconcileDelete(ctx, cs)
+		err = reconciler.reconcileDelete(ctx, cs)
 		g.Expect(err).To(BeNil())
 		expectAWSClusterConditions(g, cs.AWSCluster, []conditionAssertion{{infrav1.LoadBalancerReadyCondition, corev1.ConditionFalse, clusterv1.ConditionSeverityInfo, clusterv1.DeletedReason},
 			{infrav1.BastionHostReadyCondition, corev1.ConditionFalse, clusterv1.ConditionSeverityInfo, clusterv1.DeletedReason},
@@ -760,7 +762,7 @@ func mockedVPCCallsForExistingVPCAndSubnets(m *mocks.MockEC2APIMockRecorder) {
 
 // mockedCallsForMissingEverything mocks most of the AWSCluster reconciliation calls to the AWS API,
 // except for what other functions provide (see `mockedCreateSGCalls` and `mockedDescribeInstanceCall`).
-func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.MockELBAPIMockRecorder) {
+func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.MockELBAPIMockRecorder, privateSubnetName string, publicSubnetName string) {
 	m.CreateVpcWithContext(context.TODO(), gomock.Eq(&ec2.CreateVpcInput{
 		CidrBlock: aws.String("10.0.0.0/8"),
 		TagSpecifications: []*ec2.TagSpecification{
@@ -842,7 +844,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 				Tags: []*ec2.Tag{
 					{
 						Key:   aws.String("Name"),
-						Value: aws.String("test-cluster-subnet-private-us-east-1a"),
+						Value: aws.String(privateSubnetName),
 					},
 					{
 						Key:   aws.String("kubernetes.io/cluster/test-cluster"),
@@ -873,7 +875,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			Tags: []*ec2.Tag{
 				{
 					Key:   aws.String("Name"),
-					Value: aws.String("test-cluster-subnet-private-us-east-1a"),
+					Value: aws.String(privateSubnetName),
 				},
 				{
 					Key:   aws.String("kubernetes.io/cluster/test-cluster"),
@@ -909,7 +911,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 				Tags: []*ec2.Tag{
 					{
 						Key:   aws.String("Name"),
-						Value: aws.String("test-cluster-subnet-public-us-east-1a"),
+						Value: aws.String(publicSubnetName),
 					},
 					{
 						Key:   aws.String("kubernetes.io/cluster/test-cluster"),
@@ -940,7 +942,7 @@ func mockedCallsForMissingEverything(m *mocks.MockEC2APIMockRecorder, e *mocks.M
 			Tags: []*ec2.Tag{
 				{
 					Key:   aws.String("Name"),
-					Value: aws.String("test-cluster-subnet-public-us-east-1a"),
+					Value: aws.String(publicSubnetName),
 				},
 				{
 					Key:   aws.String("kubernetes.io/cluster/test-cluster"),

@@ -238,7 +238,7 @@ func TestGetAPIServerClassicELBSpecControlPlaneLoadBalancer(t *testing.T) {
 			expect: func(t *testing.T, g *WithT, res *infrav1.LoadBalancer) {
 				t.Helper()
 				expectedTarget := fmt.Sprintf("%v:%d", infrav1.ELBProtocolTCP, infrav1.DefaultAPIServerPort)
-				g.Expect(expectedTarget, res.HealthCheck.Target)
+				g.Expect(expectedTarget).To(Equal(res.HealthCheck.Target))
 			},
 		},
 		{
@@ -247,8 +247,8 @@ func TestGetAPIServerClassicELBSpecControlPlaneLoadBalancer(t *testing.T) {
 			mocks: func(m *mocks.MockEC2APIMockRecorder) {},
 			expect: func(t *testing.T, g *WithT, res *infrav1.LoadBalancer) {
 				t.Helper()
-				expectedTarget := fmt.Sprintf("%v:%d", infrav1.ELBProtocolTCP, infrav1.DefaultAPIServerPort)
-				g.Expect(expectedTarget, res.HealthCheck.Target)
+				expectedTarget := fmt.Sprintf("%v:%d", infrav1.ELBProtocolSSL, infrav1.DefaultAPIServerPort)
+				g.Expect(expectedTarget).To(Equal(res.HealthCheck.Target))
 			},
 		},
 	}
@@ -403,6 +403,25 @@ func TestGetAPIServerV2ELBSpecControlPlaneLoadBalancer(t *testing.T) {
 				t.Helper()
 				if len(res.ELBListeners) != 1 {
 					t.Errorf("Expected 1 listener to be configured by default, got %v listener(s)", len(res.ELBListeners))
+				}
+			},
+		},
+		{
+			name: "A base listener is set up for NLB, with additional listeners",
+			lb: &infrav1.AWSLoadBalancerSpec{
+				LoadBalancerType: infrav1.LoadBalancerTypeNLB,
+				AdditionalListeners: []infrav1.AdditionalListenerSpec{
+					{
+						Port:     443,
+						Protocol: infrav1.ELBProtocolTCP,
+					},
+				},
+			},
+			mocks: func(m *mocks.MockEC2APIMockRecorder) {},
+			expect: func(t *testing.T, g *WithT, res *infrav1.LoadBalancer) {
+				t.Helper()
+				if len(res.ELBListeners) != 2 {
+					t.Errorf("Expected 2 listener to be configured, got %v listener(s)", len(res.ELBListeners))
 				}
 			},
 		},
@@ -867,6 +886,149 @@ func TestRegisterInstanceWithAPIServerNLB(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple listeners",
+			awsCluster: &infrav1.AWSCluster{
+				ObjectMeta: metav1.ObjectMeta{Name: clusterName},
+				Spec: infrav1.AWSClusterSpec{
+					ControlPlaneLoadBalancer: &infrav1.AWSLoadBalancerSpec{
+						Name:             aws.String(elbName),
+						LoadBalancerType: infrav1.LoadBalancerTypeNLB,
+						AdditionalListeners: []infrav1.AdditionalListenerSpec{
+							{
+								Port:     443,
+								Protocol: infrav1.ELBProtocolTCP,
+							},
+							{
+								Port:     8443,
+								Protocol: infrav1.ELBProtocolTCP,
+							},
+						},
+					},
+					NetworkSpec: infrav1.NetworkSpec{
+						Subnets: infrav1.Subnets{{
+							ID:               clusterSubnetID,
+							AvailabilityZone: az,
+						}},
+					},
+				},
+			},
+			elbV2APIMocks: func(m *mocks.MockELBV2APIMockRecorder) {
+				m.DescribeLoadBalancers(gomock.Eq(&elbv2.DescribeLoadBalancersInput{
+					Names: aws.StringSlice([]string{elbName}),
+				})).
+					Return(&elbv2.DescribeLoadBalancersOutput{
+						LoadBalancers: []*elbv2.LoadBalancer{
+							{
+								LoadBalancerArn:  aws.String(elbArn),
+								LoadBalancerName: aws.String(elbName),
+								Scheme:           aws.String(string(infrav1.ELBSchemeInternetFacing)),
+								AvailabilityZones: []*elbv2.AvailabilityZone{
+									{
+										SubnetId: aws.String(clusterSubnetID),
+									},
+								},
+							},
+						},
+					}, nil)
+				m.DescribeLoadBalancerAttributes(gomock.Eq(&elbv2.DescribeLoadBalancerAttributesInput{
+					LoadBalancerArn: aws.String(elbArn),
+				})).
+					Return(&elbv2.DescribeLoadBalancerAttributesOutput{
+						Attributes: []*elbv2.LoadBalancerAttribute{
+							{
+								Key:   aws.String("load_balancing.cross_zone.enabled"),
+								Value: aws.String("true"),
+							},
+						},
+					}, nil)
+				m.DescribeTags(&elbv2.DescribeTagsInput{ResourceArns: []*string{aws.String(elbArn)}}).Return(
+					&elbv2.DescribeTagsOutput{
+						TagDescriptions: []*elbv2.TagDescription{
+							{
+								ResourceArn: aws.String(elbArn),
+								Tags: []*elbv2.Tag{{
+									Key:   aws.String(infrav1.ClusterTagKey(clusterName)),
+									Value: aws.String(string(infrav1.ResourceLifecycleOwned)),
+								}},
+							},
+						},
+					}, nil)
+				m.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{
+					LoadBalancerArn: aws.String(elbArn),
+				}).Return(&elbv2.DescribeTargetGroupsOutput{
+					TargetGroups: []*elbv2.TargetGroup{
+						{
+							HealthCheckEnabled:  aws.Bool(true),
+							HealthCheckPort:     aws.String("infrav1.DefaultAPIServerPort"),
+							HealthCheckProtocol: aws.String("TCP"),
+							LoadBalancerArns:    aws.StringSlice([]string{elbArn}),
+							Port:                aws.Int64(infrav1.DefaultAPIServerPort),
+							Protocol:            aws.String("TCP"),
+							TargetGroupArn:      aws.String("target-group::arn"),
+							TargetGroupName:     aws.String("something-generated"),
+							VpcId:               aws.String("vpc-id"),
+						},
+						{
+							HealthCheckEnabled:  aws.Bool(true),
+							HealthCheckPort:     aws.String("443"),
+							HealthCheckProtocol: aws.String("TCP"),
+							LoadBalancerArns:    aws.StringSlice([]string{elbArn}),
+							Port:                aws.Int64(443),
+							Protocol:            aws.String("TCP"),
+							TargetGroupArn:      aws.String("target-group::arn::443"),
+							TargetGroupName:     aws.String("something-generated-443"),
+							VpcId:               aws.String("vpc-id"),
+						},
+						{
+							HealthCheckEnabled:  aws.Bool(true),
+							HealthCheckPort:     aws.String("8443"),
+							HealthCheckProtocol: aws.String("TCP"),
+							LoadBalancerArns:    aws.StringSlice([]string{elbArn}),
+							Port:                aws.Int64(8443),
+							Protocol:            aws.String("TCP"),
+							TargetGroupArn:      aws.String("target-group::arn::8443"),
+							TargetGroupName:     aws.String("something-generated-8443"),
+							VpcId:               aws.String("vpc-id"),
+						},
+					},
+				}, nil)
+				m.RegisterTargets(gomock.Eq(&elbv2.RegisterTargetsInput{
+					TargetGroupArn: aws.String("target-group::arn"),
+					Targets: []*elbv2.TargetDescription{
+						{
+							Id:   aws.String(instanceID),
+							Port: aws.Int64(infrav1.DefaultAPIServerPort),
+						},
+					},
+				})).Return(&elbv2.RegisterTargetsOutput{}, nil)
+				m.RegisterTargets(gomock.Eq(&elbv2.RegisterTargetsInput{
+					TargetGroupArn: aws.String("target-group::arn::443"),
+					Targets: []*elbv2.TargetDescription{
+						{
+							Id:   aws.String(instanceID),
+							Port: aws.Int64(443),
+						},
+					},
+				})).Return(&elbv2.RegisterTargetsOutput{}, nil)
+				m.RegisterTargets(gomock.Eq(&elbv2.RegisterTargetsInput{
+					TargetGroupArn: aws.String("target-group::arn::8443"),
+					Targets: []*elbv2.TargetDescription{
+						{
+							Id:   aws.String(instanceID),
+							Port: aws.Int64(8443),
+						},
+					},
+				})).Return(&elbv2.RegisterTargetsOutput{}, nil)
+			},
+			ec2Mocks: func(m *mocks.MockEC2APIMockRecorder) {},
+			check: func(t *testing.T, err error) {
+				t.Helper()
+				if err != nil {
+					t.Fatalf("did not expect error: %v", err)
+				}
+			},
+		},
+		{
 			name: "there are no target groups to register the instance into",
 			awsCluster: &infrav1.AWSCluster{
 				ObjectMeta: metav1.ObjectMeta{Name: clusterName},
@@ -1047,6 +1209,12 @@ func TestCreateNLB(t *testing.T) {
 					Port:                aws.Int64(infrav1.DefaultAPIServerPort),
 					Protocol:            aws.String("TCP"),
 					VpcId:               aws.String(vpcID),
+					Tags: []*elbv2.Tag{
+						{
+							Key:   aws.String("test"),
+							Value: aws.String("tag"),
+						},
+					},
 				})).Return(&elbv2.CreateTargetGroupOutput{
 					TargetGroups: []*elbv2.TargetGroup{
 						{
@@ -1143,6 +1311,12 @@ func TestCreateNLB(t *testing.T) {
 					Protocol:            aws.String("TCP"),
 					VpcId:               aws.String(vpcID),
 					IpAddressType:       aws.String("ipv6"),
+					Tags: []*elbv2.Tag{
+						{
+							Key:   aws.String("test"),
+							Value: aws.String("tag"),
+						},
+					},
 				})).Return(&elbv2.CreateTargetGroupOutput{
 					TargetGroups: []*elbv2.TargetGroup{
 						{
@@ -1274,6 +1448,12 @@ func TestCreateNLB(t *testing.T) {
 					Port:     aws.Int64(infrav1.DefaultAPIServerPort),
 					Protocol: aws.String("TCP"),
 					VpcId:    aws.String(vpcID),
+					Tags: []*elbv2.Tag{
+						{
+							Key:   aws.String("test"),
+							Value: aws.String("tag"),
+						},
+					},
 				})).Return(&elbv2.CreateTargetGroupOutput{
 					TargetGroups: []*elbv2.TargetGroup{
 						{
@@ -1365,6 +1545,12 @@ func TestCreateNLB(t *testing.T) {
 					Port:                aws.Int64(infrav1.DefaultAPIServerPort),
 					Protocol:            aws.String("TCP"),
 					VpcId:               aws.String(vpcID),
+					Tags: []*elbv2.Tag{
+						{
+							Key:   aws.String("test"),
+							Value: aws.String("tag"),
+						},
+					},
 				})).Return(&elbv2.CreateTargetGroupOutput{
 					TargetGroups: []*elbv2.TargetGroup{
 						{
@@ -1449,6 +1635,12 @@ func TestCreateNLB(t *testing.T) {
 					Port:                aws.Int64(infrav1.DefaultAPIServerPort),
 					Protocol:            aws.String("TCP"),
 					VpcId:               aws.String(vpcID),
+					Tags: []*elbv2.Tag{
+						{
+							Key:   aws.String("test"),
+							Value: aws.String("tag"),
+						},
+					},
 				})).Return(&elbv2.CreateTargetGroupOutput{
 					TargetGroups: []*elbv2.TargetGroup{
 						{
@@ -1879,9 +2071,7 @@ func TestDeleteAPIServerELB(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).Build()
-			ctx := context.TODO()
-			client.Create(ctx, awsCluster)
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(awsCluster).WithStatusSubresource(awsCluster).Build()
 
 			clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 				Cluster: &clusterv1.Cluster{
@@ -2070,9 +2260,7 @@ func TestDeleteNLB(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).Build()
-			ctx := context.TODO()
-			client.Create(ctx, awsCluster)
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(awsCluster).WithStatusSubresource(awsCluster).Build()
 
 			clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 				Cluster: &clusterv1.Cluster{

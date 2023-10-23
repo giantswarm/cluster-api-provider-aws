@@ -620,6 +620,18 @@ func (s *Service) getSecurityGroupIngressRules(role infrav1.SecurityGroupRole) (
 					IPv6CidrBlocks: ipv6CidrBlocks,
 				},
 			}
+
+			for _, ln := range s.scope.ControlPlaneLoadBalancer().AdditionalListeners {
+				rules = append(rules, infrav1.IngressRule{
+					Description:    fmt.Sprintf("Allow NLB traffic to the control plane instances on port %d.", ln.Port),
+					Protocol:       infrav1.SecurityGroupProtocolTCP,
+					FromPort:       ln.Port,
+					ToPort:         ln.Port,
+					CidrBlocks:     ipv4CidrBlocks,
+					IPv6CidrBlocks: ipv6CidrBlocks,
+				})
+			}
+
 			return rules, nil
 		}
 		return infrav1.IngressRules{}, nil
@@ -648,9 +660,20 @@ func (s *Service) getDefaultSecurityGroup(role infrav1.SecurityGroupRole) *ec2.S
 
 func (s *Service) getSecurityGroupTagParams(name, id string, role infrav1.SecurityGroupRole) infrav1.BuildParams {
 	additional := s.scope.AdditionalTags()
+
+	// Handle the cloud provider tag.
+	cloudProviderTag := infrav1.ClusterAWSCloudProviderTagKey(s.scope.Name())
 	if role == infrav1.SecurityGroupLB {
-		additional[infrav1.ClusterAWSCloudProviderTagKey(s.scope.Name())] = string(infrav1.ResourceLifecycleOwned)
+		additional[cloudProviderTag] = string(infrav1.ResourceLifecycleOwned)
+	} else if _, ok := additional[cloudProviderTag]; ok {
+		// If the cloud provider tag is set in more than one security group,
+		// the CCM will not be able to determine which security group to use;
+		// remove the tag from all security groups except the load balancer security group.
+		delete(additional, cloudProviderTag)
+		s.scope.Debug("Removing cloud provider owned tag from non load balancer security group",
+			"tag", cloudProviderTag, "name", name, "role", role, "id", id)
 	}
+
 	return infrav1.BuildParams{
 		ClusterName: s.scope.Name(),
 		Lifecycle:   infrav1.ResourceLifecycleOwned,
@@ -680,7 +703,9 @@ func ingressRuleToSDKType(scope scope.SGScope, i *infrav1.IngressRule) (res *ec2
 			FromPort:   aws.Int64(i.FromPort),
 			ToPort:     aws.Int64(i.ToPort),
 		}
-	case infrav1.SecurityGroupProtocolAll, infrav1.SecurityGroupProtocolIPinIP:
+	case infrav1.SecurityGroupProtocolIPinIP,
+		infrav1.SecurityGroupProtocolESP,
+		infrav1.SecurityGroupProtocolAll:
 		res = &ec2.IpPermission{
 			IpProtocol: aws.String(string(i.Protocol)),
 		}
