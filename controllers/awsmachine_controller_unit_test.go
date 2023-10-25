@@ -105,7 +105,7 @@ func TestAWSMachineReconciler(t *testing.T) {
 			},
 		}
 
-		client := fake.NewClientBuilder().WithObjects(awsMachine, secret, secretIgnition).Build()
+		client := fake.NewClientBuilder().WithObjects(awsMachine, secret, secretIgnition).WithStatusSubresource(awsMachine).Build()
 		ms, err = scope.NewMachineScope(
 			scope.MachineScopeParams{
 				Client: client,
@@ -136,7 +136,7 @@ func TestAWSMachineReconciler(t *testing.T) {
 
 		cs, err = scope.NewClusterScope(
 			scope.ClusterScopeParams{
-				Client:     fake.NewClientBuilder().WithObjects(awsMachine, secret).Build(),
+				Client:     fake.NewClientBuilder().WithObjects(awsMachine, secret).WithStatusSubresource(awsMachine).Build(),
 				Cluster:    &clusterv1.Cluster{},
 				AWSCluster: &infrav1.AWSCluster{ObjectMeta: metav1.ObjectMeta{Name: "test"}},
 			},
@@ -1307,6 +1307,39 @@ func TestAWSMachineReconciler(t *testing.T) {
 				_, err := reconciler.reconcileNormal(context.Background(), ms, cs, cs, cs, cs)
 				g.Expect(err).To(BeNil())
 			})
+
+			t.Run("should leverage AWS S3 with presigned urls", func(t *testing.T) {
+				g := NewWithT(t)
+				awsMachine := getAWSMachine()
+				setup(t, g, awsMachine)
+				defer teardown(t, g)
+				getInstances(t, g)
+				useIgnition(t, g)
+
+				if cs.AWSCluster.Spec.S3Bucket == nil {
+					cs.AWSCluster.Spec.S3Bucket = &infrav1.S3Bucket{}
+				}
+				cs.AWSCluster.Spec.S3Bucket.PresignedURLDuration = &metav1.Duration{Duration: 1 * time.Hour}
+
+				instance = &infrav1.Instance{
+					ID:    "myMachine",
+					State: infrav1.InstanceStatePending,
+				}
+				presigned := "https://cluster-api-aws.s3.us-west-2.amazonaws.com/bootstrap-data.yaml?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA3SGQVQG7FGA6KKA6%2F20221104%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20221104T140227Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=b228dbec8c1008c80c162e1210e4503dceead1e4d4751b4d9787314fd6da4d55"
+
+				objectStoreSvc.EXPECT().Create(gomock.Any(), gomock.Any()).Return(presigned, nil).Times(1)
+				ec2Svc.EXPECT().CreateInstance(gomock.Any(), gomock.Any(), gomock.Any()).Return(instance, nil).AnyTimes()
+				ec2Svc.EXPECT().GetInstanceSecurityGroups(gomock.Any()).Return(map[string][]string{"eid": {}}, nil).Times(1)
+				ec2Svc.EXPECT().GetCoreSecurityGroups(gomock.Any()).Return([]string{}, nil).Times(1)
+				ec2Svc.EXPECT().GetAdditionalSecurityGroupsIDs(gomock.Any()).Return(nil, nil)
+
+				ms.AWSMachine.ObjectMeta.Labels = map[string]string{
+					clusterv1.MachineControlPlaneLabel: "",
+				}
+
+				_, err := reconciler.reconcileNormal(context.Background(), ms, cs, cs, cs, cs)
+				g.Expect(err).To(BeNil())
+			})
 		})
 
 		t.Run("there's a node ref and a secret ARN", func(t *testing.T) {
@@ -2064,7 +2097,7 @@ func TestAWSMachineReconcilerAWSClusterToAWSMachines(t *testing.T) {
 				g.Expect(testEnv.Cleanup(ctx, tc.awsCluster, ns)).To(Succeed())
 			})
 
-			requests := reconciler.AWSClusterToAWSMachines(logger.NewLogger(klog.Background()))(tc.awsCluster)
+			requests := reconciler.AWSClusterToAWSMachines(logger.NewLogger(klog.Background()))(ctx, tc.awsCluster)
 			if tc.requests != nil {
 				if len(tc.requests) > 0 {
 					tc.requests[0].Namespace = ns.Name
@@ -2100,7 +2133,7 @@ func TestAWSMachineReconcilerRequeueAWSMachinesForUnpausedCluster(t *testing.T) 
 				Client: testEnv.Client,
 				Log:    klog.Background(),
 			}
-			requests := reconciler.requeueAWSMachinesForUnpausedCluster(logger.NewLogger(klog.Background()))(tc.ownerCluster)
+			requests := reconciler.requeueAWSMachinesForUnpausedCluster(logger.NewLogger(klog.Background()))(ctx, tc.ownerCluster)
 			if tc.requests != nil {
 				g.Expect(requests).To(ConsistOf(tc.requests))
 			} else {
@@ -2367,7 +2400,7 @@ func TestAWSMachineReconcilerReconcile(t *testing.T) {
 					}
 					err = testEnv.Get(ctx, key, machine)
 					return err == nil
-				}, 10*time.Second).Should(Equal(true))
+				}, 10*time.Second).Should(BeTrue())
 
 				result, err := reconciler.Reconcile(ctx, ctrl.Request{
 					NamespacedName: client.ObjectKey{
@@ -2534,7 +2567,7 @@ func TestAWSMachineReconcilerReconcileDefaultsToLoadBalancerTypeClassic(t *testi
 		},
 	}
 
-	fakeClient := fake.NewClientBuilder().WithObjects(ownerCluster, awsCluster, ownerMachine, awsMachine, controllerIdentity, secret).Build()
+	fakeClient := fake.NewClientBuilder().WithObjects(ownerCluster, awsCluster, ownerMachine, awsMachine, controllerIdentity, secret).WithStatusSubresource(awsCluster, awsMachine).Build()
 
 	recorder := record.NewFakeRecorder(10)
 	reconciler := &AWSMachineReconciler{

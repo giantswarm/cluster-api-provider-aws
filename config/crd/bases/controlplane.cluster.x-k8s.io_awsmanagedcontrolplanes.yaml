@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: awsmanagedcontrolplanes.controlplane.cluster.x-k8s.io
 spec:
   group: controlplane.cluster.x-k8s.io
@@ -387,7 +386,7 @@ spec:
                         protocol:
                           description: Protocol is the protocol for the ingress rule.
                             Accepted values are "-1" (all), "4" (IP in IP),"tcp",
-                            "udp", "icmp", and "58" (ICMPv6).
+                            "udp", "icmp", and "58" (ICMPv6), "50" (ESP).
                           enum:
                           - "-1"
                           - "4"
@@ -395,6 +394,7 @@ spec:
                           - udp
                           - icmp
                           - "58"
+                          - "50"
                           type: string
                         sourceSecurityGroupIds:
                           description: The security group id to allow access from.
@@ -482,8 +482,15 @@ spec:
                             the provider creates a managed VPC.
                           type: string
                         id:
-                          description: ID defines a unique identifier to reference
-                            this resource.
+                          description: "ID defines a unique identifier to reference
+                            this resource. If you're bringing your subnet, set the
+                            AWS subnet-id here, it must start with `subnet-`. \n When
+                            the VPC is managed by CAPA, and you'd like the provider
+                            to create a subnet for you, the id can be set to any placeholder
+                            value that does not start with `subnet-`; upon creation,
+                            the subnet AWS identifier will be populated in the `ResourceID`
+                            field and the `id` field is going to be used as the subnet
+                            name. If you specify a tag called `Name`, it takes precedence."
                           type: string
                         ipv6CidrBlock:
                           description: IPv6CidrBlock is the IPv6 CIDR block to be
@@ -510,6 +517,11 @@ spec:
                             subnet where the NAT gateway resides. It is then used
                             to determine routes for private subnets in the same AZ
                             as the public subnet.
+                          type: string
+                        resourceID:
+                          description: ResourceID is the subnet identifier from AWS,
+                            READ ONLY. This field is populated when the provider manages
+                            the subnet.
                           type: string
                         routeTableId:
                           description: RouteTableID is the routing table id associated
@@ -782,6 +794,7 @@ spec:
                               required:
                               - key
                               type: object
+                              x-kubernetes-map-type: atomic
                             fieldRef:
                               description: 'Selects a field of the pod: supports metadata.name,
                                 metadata.namespace, `metadata.labels[''<KEY>'']`,
@@ -800,6 +813,7 @@ spec:
                               required:
                               - fieldPath
                               type: object
+                              x-kubernetes-map-type: atomic
                             resourceFieldRef:
                               description: 'Selects a resource of the container: only
                                 resources limits and requests (limits.cpu, limits.memory,
@@ -824,6 +838,7 @@ spec:
                               required:
                               - resource
                               type: object
+                              x-kubernetes-map-type: atomic
                             secretKeyRef:
                               description: Selects a key of a secret in the pod's
                                 namespace
@@ -844,6 +859,7 @@ spec:
                               required:
                               - key
                               type: object
+                              x-kubernetes-map-type: atomic
                           type: object
                       required:
                       - name
@@ -1505,7 +1521,8 @@ spec:
                               protocol:
                                 description: Protocol is the protocol for the ingress
                                   rule. Accepted values are "-1" (all), "4" (IP in
-                                  IP),"tcp", "udp", "icmp", and "58" (ICMPv6).
+                                  IP),"tcp", "udp", "icmp", and "58" (ICMPv6), "50"
+                                  (ESP).
                                 enum:
                                 - "-1"
                                 - "4"
@@ -1513,6 +1530,7 @@ spec:
                                 - udp
                                 - icmp
                                 - "58"
+                                - "50"
                                 type: string
                               sourceSecurityGroupIds:
                                 description: The security group id to allow access
@@ -1949,7 +1967,7 @@ spec:
                         protocol:
                           description: Protocol is the protocol for the ingress rule.
                             Accepted values are "-1" (all), "4" (IP in IP),"tcp",
-                            "udp", "icmp", and "58" (ICMPv6).
+                            "udp", "icmp", and "58" (ICMPv6), "50" (ESP).
                           enum:
                           - "-1"
                           - "4"
@@ -1957,6 +1975,7 @@ spec:
                           - udp
                           - icmp
                           - "58"
+                          - "50"
                           type: string
                         sourceSecurityGroupIds:
                           description: The security group id to allow access from.
@@ -2044,8 +2063,15 @@ spec:
                             the provider creates a managed VPC.
                           type: string
                         id:
-                          description: ID defines a unique identifier to reference
-                            this resource.
+                          description: "ID defines a unique identifier to reference
+                            this resource. If you're bringing your subnet, set the
+                            AWS subnet-id here, it must start with `subnet-`. \n When
+                            the VPC is managed by CAPA, and you'd like the provider
+                            to create a subnet for you, the id can be set to any placeholder
+                            value that does not start with `subnet-`; upon creation,
+                            the subnet AWS identifier will be populated in the `ResourceID`
+                            field and the `id` field is going to be used as the subnet
+                            name. If you specify a tag called `Name`, it takes precedence."
                           type: string
                         ipv6CidrBlock:
                           description: IPv6CidrBlock is the IPv6 CIDR block to be
@@ -2072,6 +2098,11 @@ spec:
                             subnet where the NAT gateway resides. It is then used
                             to determine routes for private subnets in the same AZ
                             as the public subnet.
+                          type: string
+                        resourceID:
+                          description: ResourceID is the subnet identifier from AWS,
+                            READ ONLY. This field is populated when the provider manages
+                            the subnet.
                           type: string
                         routeTableId:
                           description: RouteTableID is the routing table id associated
@@ -2357,6 +2388,7 @@ spec:
                               required:
                               - key
                               type: object
+                              x-kubernetes-map-type: atomic
                             fieldRef:
                               description: 'Selects a field of the pod: supports metadata.name,
                                 metadata.namespace, `metadata.labels[''<KEY>'']`,
@@ -2375,6 +2407,7 @@ spec:
                               required:
                               - fieldPath
                               type: object
+                              x-kubernetes-map-type: atomic
                             resourceFieldRef:
                               description: 'Selects a resource of the container: only
                                 resources limits and requests (limits.cpu, limits.memory,
@@ -2399,6 +2432,7 @@ spec:
                               required:
                               - resource
                               type: object
+                              x-kubernetes-map-type: atomic
                             secretKeyRef:
                               description: Selects a key of a secret in the pod's
                                 namespace
@@ -2419,6 +2453,7 @@ spec:
                               required:
                               - key
                               type: object
+                              x-kubernetes-map-type: atomic
                           type: object
                       required:
                       - name
@@ -3080,7 +3115,8 @@ spec:
                               protocol:
                                 description: Protocol is the protocol for the ingress
                                   rule. Accepted values are "-1" (all), "4" (IP in
-                                  IP),"tcp", "udp", "icmp", and "58" (ICMPv6).
+                                  IP),"tcp", "udp", "icmp", and "58" (ICMPv6), "50"
+                                  (ESP).
                                 enum:
                                 - "-1"
                                 - "4"
@@ -3088,6 +3124,7 @@ spec:
                                 - udp
                                 - icmp
                                 - "58"
+                                - "50"
                                 type: string
                               sourceSecurityGroupIds:
                                 description: The security group id to allow access
