@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/mock_services"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/logger"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors"
@@ -113,6 +114,9 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 		g.Expect(testEnv.Create(ctx, awsMachinePool)).To(Succeed())
 		g.Expect(testEnv.Create(ctx, secret)).To(Succeed())
 
+		cs, err = setupCluster("test-cluster")
+		g.Expect(err).To(BeNil())
+
 		ms, err = scope.NewMachinePoolScope(
 			scope.MachinePoolScopeParams{
 				Client: testEnv.Client,
@@ -142,9 +146,6 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				AWSMachinePool: awsMachinePool,
 			},
 		)
-		g.Expect(err).To(BeNil())
-
-		cs, err = setupCluster("test-cluster")
 		g.Expect(err).To(BeNil())
 
 		mockCtrl = gomock.NewController(t)
@@ -477,6 +478,47 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 						Name: scope.Name(),
 					}, nil
 				})
+
+				err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+				g.Expect(err).To(Succeed())
+			})
+
+			t.Run("launch template and ASG exist and need no update", func(t *testing.T) {
+				// Latest ID and version already stored, no need to retrieve it
+				ms.AWSMachinePool.Status.LaunchTemplateID = "lt-existing"
+				ms.AWSMachinePool.Status.LaunchTemplateVersion = aws.String("1")
+
+				ec2Svc.EXPECT().GetLaunchTemplate(gomock.Eq("test")).Return(
+					&expinfrav1.AWSLaunchTemplate{
+						Name: "test",
+						AMI: infrav1.AMIReference{
+							ID: aws.String("ami-existing"),
+						},
+					},
+					// No change to user data
+					userdata.ComputeHash([]byte("shell-script")),
+					nil)
+				ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(aws.String("ami-existing"), nil)        // no change
+				ec2Svc.EXPECT().LaunchTemplateNeedsUpdate(gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil) // TODO This should not be mocked, but we need to test the real implementation
+
+				asgSvc.EXPECT().GetASGByName(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+					g.Expect(scope.Name()).To(Equal("test"))
+
+					// No difference to `AWSMachinePool.spec`
+					return &expinfrav1.AutoScalingGroup{
+						Name: scope.Name(),
+						Subnets: []string{
+							"subnet-1",
+						},
+						MinSize:              awsMachinePool.Spec.MinSize,
+						MaxSize:              awsMachinePool.Spec.MaxSize,
+						MixedInstancesPolicy: awsMachinePool.Spec.MixedInstancesPolicy.DeepCopy(),
+					}, nil
+				})
+				asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet-1"}, nil) // no change
+				// No changes, so there must not be an ASG update!
+				asgSvc.EXPECT().UpdateASG(gomock.Any()).Times(0)
+				ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 
 				err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
 				g.Expect(err).To(Succeed())

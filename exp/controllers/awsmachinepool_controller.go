@@ -420,7 +420,7 @@ func (r *AWSMachinePoolReconciler) updatePool(machinePoolScope *scope.MachinePoo
 
 	asgDiff := diffASG(machinePoolScope, existingASG)
 	if asgDiff != "" {
-		machinePoolScope.Debug("asg diff detected", "diff", subnetDiff)
+		machinePoolScope.Debug("asg diff detected", "asgDiff", asgDiff, "subnetDiff", subnetDiff)
 	}
 	if asgDiff != "" || subnetDiff != "" {
 		machinePoolScope.Info("updating AutoScalingGroup")

@@ -125,7 +125,9 @@ func (s *Service) ReconcileLaunchTemplate(
 		return err
 	}
 
-	if needsUpdate || tagsChanged || *imageID != *launchTemplate.AMI.ID {
+	amiChanged := *imageID != *launchTemplate.AMI.ID
+
+	if needsUpdate || tagsChanged || amiChanged {
 		canUpdate, err := canUpdateLaunchTemplate()
 		if err != nil {
 			return err
@@ -136,10 +138,12 @@ func (s *Service) ReconcileLaunchTemplate(
 		}
 	}
 
+	userDataHashChanged := launchTemplateUserDataHash != bootstrapDataHash
+
 	// Create a new launch template version if there's a difference in configuration, tags,
 	// userdata, OR we've discovered a new AMI ID.
-	if needsUpdate || tagsChanged || *imageID != *launchTemplate.AMI.ID || launchTemplateUserDataHash != bootstrapDataHash {
-		scope.Info("creating new version for launch template", "existing", launchTemplate, "incoming", scope.GetLaunchTemplate())
+	if needsUpdate || tagsChanged || amiChanged || userDataHashChanged {
+		scope.Info("creating new version for launch template", "existing", launchTemplate, "incoming", scope.GetLaunchTemplate(), "needsUpdate", needsUpdate, "tagsChanged", tagsChanged, "amiChanged", amiChanged, "userDataHashChanged", userDataHashChanged)
 		// There is a limit to the number of Launch Template Versions.
 		// We ensure that the number of versions does not grow without bound by following a simple rule: Before we create a new version, we delete one old version, if there is at least one old version that is not in use.
 		if err := ec2svc.PruneLaunchTemplateVersions(scope.GetLaunchTemplateIDStatus()); err != nil {
@@ -159,7 +163,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		}
 	}
 
-	if needsUpdate || tagsChanged || *imageID != *launchTemplate.AMI.ID {
+	if needsUpdate || tagsChanged || amiChanged {
 		if err := runPostLaunchTemplateUpdateOperation(); err != nil {
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.PostLaunchTemplateUpdateOperationCondition, expinfrav1.PostLaunchTemplateUpdateOperationFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			return err
