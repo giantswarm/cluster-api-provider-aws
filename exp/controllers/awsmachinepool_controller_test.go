@@ -58,6 +58,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 		mockCtrl       *gomock.Controller
 		ec2Svc         *mock_services.MockEC2Interface
 		asgSvc         *mock_services.MockASGInterface
+		reconSvc       *mock_services.MockReconcileInterface
 		recorder       *record.FakeRecorder
 		awsMachinePool *expinfrav1.AWSMachinePool
 		secret         *corev1.Secret
@@ -149,6 +150,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 		mockCtrl = gomock.NewController(t)
 		ec2Svc = mock_services.NewMockEC2Interface(mockCtrl)
 		asgSvc = mock_services.NewMockASGInterface(mockCtrl)
+		reconSvc = mock_services.NewMockReconcileInterface(mockCtrl)
 
 		// If the test hangs for 9 minutes, increase the value here to the number of events during a reconciliation loop
 		recorder = record.NewFakeRecorder(2)
@@ -159,6 +161,9 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			},
 			asgServiceFactory: func(cloud.ClusterScoper) services.ASGInterface {
 				return asgSvc
+			},
+			reconcileServiceFactory: func(scope.EC2Scope) services.ReconcileInterface {
+				return reconSvc
 			},
 			Recorder: recorder,
 		}
@@ -208,7 +213,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				defer teardown(t, g)
 				getASG(t, g)
 
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any())
+				reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 
 				_ = reconciler.reconcileNormal(context.Background(), ms, cs, cs)
 
@@ -260,7 +265,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				setProviderID(t, g)
 
 				expectedErr := errors.New("no connection available ")
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedErr)
+				reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedErr)
 				err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
 				g.Expect(errors.Cause(err)).To(MatchError(expectedErr))
 			})
@@ -281,7 +286,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				defer teardown(t, g)
 				setSuspendedProcesses(t, g)
 
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(nil, nil)
 				asgSvc.EXPECT().CreateASG(gomock.Any()).Return(&expinfrav1.AutoScalingGroup{
 					Name: "name",
@@ -305,7 +310,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				defer teardown(t, g)
 				setSuspendedProcesses(t, g)
 				ms.AWSMachinePool.Spec.SuspendProcesses.All = true
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 				asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&expinfrav1.AutoScalingGroup{
 					Name: "name",
@@ -345,7 +350,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				defer teardown(t, g)
 				setSuspendedProcesses(t, g)
 
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 				asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&expinfrav1.AutoScalingGroup{
 					Name:                      "name",
@@ -376,7 +381,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			ec2Svc.EXPECT().GetLaunchTemplate(gomock.Any()).Return(nil, "", nil).AnyTimes()
 			ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(nil, nil).AnyTimes()
 			ec2Svc.EXPECT().CreateLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return("", nil).AnyTimes()
-			ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			ms.MachinePool.Annotations = map[string]string{
@@ -411,7 +416,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 					},
 				},
 				Subnets: []string{"subnet1", "subnet2"}}
-			ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&asg, nil).AnyTimes()
 			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet2", "subnet1"}, nil).Times(1)
@@ -429,7 +434,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				MinSize: int32(0),
 				MaxSize: int32(100),
 				Subnets: []string{"subnet1", "subnet2"}}
-			ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&asg, nil).AnyTimes()
 			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{"subnet1"}, nil).Times(1)
@@ -447,7 +452,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				MinSize: int32(0),
 				MaxSize: int32(2),
 				Subnets: []string{}}
-			ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&asg, nil).AnyTimes()
 			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{}, nil).Times(1)

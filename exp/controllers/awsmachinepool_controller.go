@@ -60,6 +60,7 @@ type AWSMachinePoolReconciler struct {
 	WatchFilterValue             string
 	asgServiceFactory            func(cloud.ClusterScoper) services.ASGInterface
 	ec2ServiceFactory            func(scope.EC2Scope) services.EC2Interface
+	reconcileServiceFactory      func(scope.EC2Scope) services.ReconcileInterface
 	TagUnmanagedNetworkResources bool
 }
 
@@ -73,6 +74,14 @@ func (r *AWSMachinePoolReconciler) getASGService(scope cloud.ClusterScoper) serv
 func (r *AWSMachinePoolReconciler) getEC2Service(scope scope.EC2Scope) services.EC2Interface {
 	if r.ec2ServiceFactory != nil {
 		return r.ec2ServiceFactory(scope)
+	}
+
+	return ec2.NewService(scope)
+}
+
+func (r *AWSMachinePoolReconciler) getReconcileService(scope scope.EC2Scope) services.ReconcileInterface {
+	if r.reconcileServiceFactory != nil {
+		return r.reconcileServiceFactory(scope)
 	}
 
 	return ec2.NewService(scope)
@@ -225,6 +234,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 
 	ec2Svc := r.getEC2Service(ec2Scope)
 	asgsvc := r.getASGService(clusterScope)
+	reconSvc := r.getReconcileService(ec2Scope)
 
 	canUpdateLaunchTemplate := func() (bool, error) {
 		// If there is a change: before changing the template, check if there exist an ongoing instance refresh,
@@ -250,7 +260,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		machinePoolScope.Info("starting instance refresh", "number of instances", machinePoolScope.MachinePool.Spec.Replicas)
 		return asgsvc.StartASGInstanceRefresh(machinePoolScope)
 	}
-	if err := ec2Svc.ReconcileLaunchTemplate(machinePoolScope, canUpdateLaunchTemplate, runPostLaunchTemplateUpdateOperation); err != nil {
+	if err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, ec2Svc, canUpdateLaunchTemplate, runPostLaunchTemplateUpdateOperation); err != nil {
 		r.Recorder.Eventf(machinePoolScope.AWSMachinePool, corev1.EventTypeWarning, "FailedLaunchTemplateReconcile", "Failed to reconcile launch template: %v", err)
 		machinePoolScope.Error(err, "failed to reconcile launch template")
 		return err

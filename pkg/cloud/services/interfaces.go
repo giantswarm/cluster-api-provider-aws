@@ -65,7 +65,6 @@ type EC2Interface interface {
 	TerminateInstanceAndWait(instanceID string) error
 	DetachSecurityGroupsFromNetworkInterface(groups []string, interfaceID string) error
 
-	ReconcileLaunchTemplate(scope scope.LaunchTemplateScope, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
 	ReconcileTags(scope scope.LaunchTemplateScope, resourceServicesToUpdate []scope.ResourceServiceToUpdate) error
 
 	DiscoverLaunchTemplateAMI(scope scope.LaunchTemplateScope) (*string, error)
@@ -79,6 +78,14 @@ type EC2Interface interface {
 	LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, incoming *expinfrav1.AWSLaunchTemplate, existing *expinfrav1.AWSLaunchTemplate) (bool, error)
 	DeleteBastion() error
 	ReconcileBastion() error
+}
+
+// ReconcileInterface encapsulates high-level reconciliation functions regarding EC2 reconciliation. It is separate
+// from EC2Interface so that we can test the behavior of our non-mock implementations. For example, by not mocking
+// the ReconcileLaunchTemplate function, but mocking EC2Interface, we can test which EC2 API operations would have
+// been called.
+type ReconcileInterface interface {
+	ReconcileLaunchTemplate(scope scope.LaunchTemplateScope, ec2svc EC2Interface, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
 }
 
 // SecretInterface encapsulated the methods exposed to the

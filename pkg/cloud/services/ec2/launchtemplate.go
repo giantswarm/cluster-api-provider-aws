@@ -35,6 +35,7 @@ import (
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -53,6 +54,7 @@ const (
 
 func (s *Service) ReconcileLaunchTemplate(
 	scope scope.LaunchTemplateScope,
+	ec2svc services.EC2Interface,
 	canUpdateLaunchTemplate func() (bool, error),
 	runPostLaunchTemplateUpdateOperation func() error,
 ) error {
@@ -62,8 +64,6 @@ func (s *Service) ReconcileLaunchTemplate(
 		return err
 	}
 	bootstrapDataHash := userdata.ComputeHash(bootstrapData)
-
-	ec2svc := NewService(scope.GetEC2Scope())
 
 	scope.Info("checking for existing launch template")
 	launchTemplate, launchTemplateUserDataHash, err := ec2svc.GetLaunchTemplate(scope.LaunchTemplateName())

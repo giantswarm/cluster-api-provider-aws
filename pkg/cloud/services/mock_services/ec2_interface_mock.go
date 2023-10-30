@@ -331,20 +331,6 @@ func (mr *MockEC2InterfaceMockRecorder) ReconcileBastion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileBastion", reflect.TypeOf((*MockEC2Interface)(nil).ReconcileBastion))
 }
 
-// ReconcileLaunchTemplate mocks base method.
-func (m *MockEC2Interface) ReconcileLaunchTemplate(arg0 scope.LaunchTemplateScope, arg1 func() (bool, error), arg2 func() error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReconcileLaunchTemplate", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ReconcileLaunchTemplate indicates an expected call of ReconcileLaunchTemplate.
-func (mr *MockEC2InterfaceMockRecorder) ReconcileLaunchTemplate(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileLaunchTemplate", reflect.TypeOf((*MockEC2Interface)(nil).ReconcileLaunchTemplate), arg0, arg1, arg2)
-}
-
 // ReconcileTags mocks base method.
 func (m *MockEC2Interface) ReconcileTags(arg0 scope.LaunchTemplateScope, arg1 []scope.ResourceServiceToUpdate) error {
 	m.ctrl.T.Helper()
