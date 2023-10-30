@@ -461,6 +461,30 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
 			g.Expect(err).To(Succeed())
 		})
+
+		t.Run("ReconcileLaunchTemplate not mocked", func(t *testing.T) {
+			g := NewWithT(t)
+			setup(t, g)
+			reconciler.reconcileServiceFactory = nil // use real implementation, but keep EC2 calls mocked (`ec2ServiceFactory`)
+			reconSvc = nil                           // not used
+			defer teardown(t, g)
+
+			t.Run("nothing exists, so launch template and ASG must be created", func(t *testing.T) {
+				ec2Svc.EXPECT().GetLaunchTemplate(gomock.Eq("test")).Return(nil, "", nil)
+				ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(aws.String("ami-abcdef123"), nil)
+				ec2Svc.EXPECT().CreateLaunchTemplate(gomock.Any(), gomock.Eq(aws.String("ami-abcdef123")), gomock.Eq([]byte("shell-script"))).Return("lt-ghijkl456", nil)
+				asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(nil, nil)
+				asgSvc.EXPECT().CreateASG(gomock.Any()).DoAndReturn(func(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error) {
+					g.Expect(scope.Name()).To(Equal("test"))
+					return &expinfrav1.AutoScalingGroup{
+						Name: scope.Name(),
+					}, nil
+				})
+
+				err := reconciler.reconcileNormal(context.Background(), ms, cs, cs)
+				g.Expect(err).To(Succeed())
+			})
+		})
 	})
 
 	t.Run("Deleting an AWSMachinePool", func(t *testing.T) {
