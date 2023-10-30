@@ -60,6 +60,7 @@ type AWSMachinePoolReconciler struct {
 	WatchFilterValue             string
 	asgServiceFactory            func(cloud.ClusterScoper) services.ASGInterface
 	ec2ServiceFactory            func(scope.EC2Scope) services.EC2Interface
+	reconcileServiceFactory      func(scope.EC2Scope) services.MachinePoolReconcileInterface
 	TagUnmanagedNetworkResources bool
 }
 
@@ -73,6 +74,14 @@ func (r *AWSMachinePoolReconciler) getASGService(scope cloud.ClusterScoper) serv
 func (r *AWSMachinePoolReconciler) getEC2Service(scope scope.EC2Scope) services.EC2Interface {
 	if r.ec2ServiceFactory != nil {
 		return r.ec2ServiceFactory(scope)
+	}
+
+	return ec2.NewService(scope)
+}
+
+func (r *AWSMachinePoolReconciler) getReconcileService(scope scope.EC2Scope) services.MachinePoolReconcileInterface {
+	if r.reconcileServiceFactory != nil {
+		return r.reconcileServiceFactory(scope)
 	}
 
 	return ec2.NewService(scope)
@@ -225,6 +234,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 
 	ec2Svc := r.getEC2Service(ec2Scope)
 	asgsvc := r.getASGService(clusterScope)
+	reconSvc := r.getReconcileService(ec2Scope)
 
 	// Find existing ASG
 	asg, err := r.findASG(machinePoolScope, asgsvc)
@@ -267,7 +277,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		machinePoolScope.Info("starting instance refresh", "number of instances", machinePoolScope.MachinePool.Spec.Replicas)
 		return asgsvc.StartASGInstanceRefresh(machinePoolScope)
 	}
-	if err := ec2Svc.ReconcileLaunchTemplate(machinePoolScope, canUpdateLaunchTemplate, runPostLaunchTemplateUpdateOperation); err != nil {
+	if err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, ec2Svc, canUpdateLaunchTemplate, runPostLaunchTemplateUpdateOperation); err != nil {
 		r.Recorder.Eventf(machinePoolScope.AWSMachinePool, corev1.EventTypeWarning, "FailedLaunchTemplateReconcile", "Failed to reconcile launch template: %v", err)
 		machinePoolScope.Error(err, "failed to reconcile launch template")
 		return err
@@ -315,7 +325,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 			ResourceService: asgsvc,
 		},
 	}
-	err = ec2Svc.ReconcileTags(machinePoolScope, resourceServiceToUpdate)
+	err = reconSvc.ReconcileTags(machinePoolScope, resourceServiceToUpdate)
 	if err != nil {
 		return errors.Wrap(err, "error updating tags")
 	}
@@ -376,7 +386,7 @@ func (r *AWSMachinePoolReconciler) reconcileDelete(machinePoolScope *scope.Machi
 	}
 
 	launchTemplateID := machinePoolScope.AWSMachinePool.Status.LaunchTemplateID
-	launchTemplate, _, err := ec2Svc.GetLaunchTemplate(machinePoolScope.LaunchTemplateName())
+	launchTemplate, _, _, err := ec2Svc.GetLaunchTemplate(machinePoolScope.LaunchTemplateName())
 	if err != nil {
 		return err
 	}
@@ -420,7 +430,7 @@ func (r *AWSMachinePoolReconciler) updatePool(machinePoolScope *scope.MachinePoo
 
 	asgDiff := diffASG(machinePoolScope, existingASG)
 	if asgDiff != "" {
-		machinePoolScope.Debug("asg diff detected", "diff", subnetDiff)
+		machinePoolScope.Debug("asg diff detected", "asgDiff", asgDiff, "subnetDiff", subnetDiff)
 	}
 	if asgDiff != "" || subnetDiff != "" {
 		machinePoolScope.Info("updating AutoScalingGroup")
