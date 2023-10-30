@@ -375,14 +375,11 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				Name:            "an-asg",
 				DesiredCapacity: pointer.Int32(1),
 			}
-			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&asg, nil).AnyTimes()
-			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{}, nil).Times(1)
-			asgSvc.EXPECT().UpdateASG(gomock.Any()).Return(nil).AnyTimes()
-			ec2Svc.EXPECT().GetLaunchTemplate(gomock.Any()).Return(nil, "", nil).AnyTimes()
-			ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(nil, nil).AnyTimes()
-			ec2Svc.EXPECT().CreateLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return("", nil).AnyTimes()
-			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			reconSvc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(&asg, nil)
+			asgSvc.EXPECT().SubnetIDs(gomock.Any()).Return([]string{}, nil)
+			asgSvc.EXPECT().UpdateASG(gomock.Any()).Return(nil)
+			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 
 			ms.MachinePool.Annotations = map[string]string{
 				scope.ReplicasManagedByAnnotation: scope.ExternalAutoscalerReplicasManagedByAnnotationValue,
