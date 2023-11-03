@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"k8s.io/apimachinery/pkg/types"
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
@@ -68,11 +69,11 @@ type EC2Interface interface {
 	ReconcileTags(scope scope.LaunchTemplateScope, resourceServicesToUpdate []scope.ResourceServiceToUpdate) error
 
 	DiscoverLaunchTemplateAMI(scope scope.LaunchTemplateScope) (*string, error)
-	GetLaunchTemplate(id string) (lt *expinfrav1.AWSLaunchTemplate, userDataHash string, err error)
+	GetLaunchTemplate(id string) (lt *expinfrav1.AWSLaunchTemplate, userDataHash string, userDataSecretKey *types.NamespacedName, err error)
 	GetLaunchTemplateID(id string) (string, error)
 	GetLaunchTemplateLatestVersion(id string) (string, error)
-	CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID *string, userData []byte) (string, error)
-	CreateLaunchTemplateVersion(id string, scope scope.LaunchTemplateScope, imageID *string, userData []byte) error
+	CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey types.NamespacedName, userData []byte) (string, error)
+	CreateLaunchTemplateVersion(id string, scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey types.NamespacedName, userData []byte) error
 	PruneLaunchTemplateVersions(id string) error
 	DeleteLaunchTemplate(id string) error
 	LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, incoming *expinfrav1.AWSLaunchTemplate, existing *expinfrav1.AWSLaunchTemplate) (bool, error)
