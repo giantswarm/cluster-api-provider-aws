@@ -163,7 +163,7 @@ func (m *MachinePoolScope) getBootstrapData() ([]byte, string, *types.Namespaced
 	key := types.NamespacedName{Namespace: m.Namespace(), Name: *m.MachinePool.Spec.Template.Spec.Bootstrap.DataSecretName}
 
 	if err := m.Client.Get(context.TODO(), key, secret); err != nil {
-		return nil, "", nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret %s for AWSMachine %s/%s", key.Name, m.Namespace(), m.Name())
+		return nil, "", nil, errors.Wrapf(err, "failed to retrieve bootstrap data secret %s for AWSMachinePool %s/%s", key.Name, m.Namespace(), m.Name())
 	}
 
 	value, ok := secret.Data["value"]
