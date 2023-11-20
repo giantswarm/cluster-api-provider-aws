@@ -33,6 +33,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +45,10 @@ import (
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
 )
+
+const TestSvc = "test-svc-"
 
 var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 	var (
@@ -333,7 +337,7 @@ var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 			}, e2eCtx.E2EConfig.GetIntervals(specName, "wait-contolplane-upgrade")...)
 
 			ginkgo.By("Creating the LB service")
-			lbServiceName := "test-svc-" + util.RandomString(6)
+			lbServiceName := TestSvc + util.RandomString(6)
 			elbName := createLBService(metav1.NamespaceDefault, lbServiceName, clusterClient)
 			verifyElbExists(elbName, true)
 
@@ -403,7 +407,7 @@ var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 			}, e2eCtx.E2EConfig.GetIntervals(specName, "wait-contolplane-upgrade")...)
 
 			ginkgo.By("Creating the LB service")
-			lbServiceName := "test-svc-" + util.RandomString(6)
+			lbServiceName := TestSvc + util.RandomString(6)
 			elbName := createLBService(metav1.NamespaceDefault, lbServiceName, clusterClient)
 			verifyElbExists(elbName, true)
 
@@ -473,7 +477,7 @@ var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 			}, e2eCtx.E2EConfig.GetIntervals(specName, "wait-contolplane-upgrade")...)
 
 			ginkgo.By("Creating the LB service")
-			lbServiceName := "test-svc-" + util.RandomString(6)
+			lbServiceName := TestSvc + util.RandomString(6)
 			elbName := createLBService(metav1.NamespaceDefault, lbServiceName, clusterClient)
 			verifyElbExists(elbName, true)
 
@@ -1047,7 +1051,7 @@ var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 			configCluster.ControlPlaneMachineCount = pointer.Int64(1)
 			configCluster.WorkerMachineCount = pointer.Int64(1)
 			configCluster.Flavor = shared.IgnitionFlavor
-			_, md, _ := createCluster(ctx, configCluster, result)
+			cluster, md, _ := createCluster(ctx, configCluster, result)
 
 			workerMachines := framework.GetMachinesByMachineDeployments(ctx, framework.GetMachinesByMachineDeploymentsInput{
 				Lister:            e2eCtx.Environment.BootstrapClusterProxy.GetClient(),
@@ -1062,6 +1066,36 @@ var _ = ginkgo.Context("[unmanaged] [functional]", func() {
 			})
 			Expect(len(workerMachines)).To(Equal(1))
 			Expect(len(controlPlaneMachines)).To(Equal(1))
+
+			awsCluster, err := GetAWSClusterByName(ctx, namespace.Name, clusterName)
+			Expect(err).To(BeNil())
+
+			ginkgo.By("Validating the s3 endpoint was created")
+			vpc, err := shared.GetVPCByName(e2eCtx, clusterName+"-vpc")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(vpc).NotTo(BeNil())
+			endpoints, err := shared.GetVPCEndpointsByID(e2eCtx, *vpc.VpcId)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(endpoints).NotTo(BeNil())
+			Expect(len(endpoints)).To(Equal(1))
+			Expect(*endpoints[0].VpcEndpointType).To(Equal("Gateway"))
+			Expect(*endpoints[0].ServiceName).To(Equal("com.amazonaws." + awsCluster.Spec.Region + ".s3"))
+			Expect(*endpoints[0].VpcId).To(Equal(*vpc.VpcId))
+
+			ginkgo.By("Deleting the cluster")
+			deleteCluster(ctx, cluster)
+
+			ginkgo.By("Waiting for AWSCluster to show the VPC endpoint as deleted in conditions")
+			Eventually(func() bool {
+				awsCluster, err := GetAWSClusterByName(ctx, namespace.Name, clusterName)
+				// If the cluster was already deleted, we can ignore the error.
+				if apierrors.IsNotFound(err) {
+					return true
+				}
+				Expect(err).To(BeNil())
+				return conditions.IsFalse(awsCluster, infrav1.VpcEndpointsReadyCondition) &&
+					conditions.GetReason(awsCluster, infrav1.VpcEndpointsReadyCondition) == clusterv1.DeletedReason
+			}, e2eCtx.E2EConfig.GetIntervals("", "wait-delete-cluster")...).Should(BeTrue())
 		})
 	})
 })
