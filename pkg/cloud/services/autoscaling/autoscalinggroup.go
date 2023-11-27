@@ -311,6 +311,9 @@ func (s *Service) CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (boo
 	describeInput := &autoscaling.DescribeInstanceRefreshesInput{AutoScalingGroupName: aws.String(scope.Name())}
 	refreshes, err := s.ASGClient.DescribeInstanceRefreshes(describeInput)
 	if err != nil {
+		if awserrors.IsNotFound(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	hasUnfinishedRefresh := false
