@@ -1028,10 +1028,10 @@ func TestServiceCanStartASGInstanceRefresh(t *testing.T) {
 			wantErr:  true,
 			canStart: false,
 			expect: func(m *mock_autoscalingiface.MockAutoScalingAPIMockRecorder) {
-				m.DescribeInstanceRefreshes(gomock.Eq(&autoscaling.DescribeInstanceRefreshesInput{
+				m.DescribeInstanceRefreshesWithContext(context.TODO(), gomock.Eq(&autoscaling.DescribeInstanceRefreshesInput{
 					AutoScalingGroupName: aws.String("machinePoolName"),
 				})).
-					Return(nil, awserrors.NewNotFound("not found"))
+					Return(nil, awserrors.NewConflict("some error"))
 			},
 		},
 		{
