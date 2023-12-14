@@ -208,8 +208,6 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				defer teardown(t, g)
 				getASG(t, g)
 
-				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any())
-
 				_ = reconciler.reconcileNormal(context.Background(), ms, cs, cs)
 
 				g.Expect(ms.AWSMachinePool.Finalizers).To(ContainElement(expinfrav1.MachinePoolFinalizer))
@@ -253,11 +251,18 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				t.Helper()
 				ms.AWSMachinePool.Spec.ProviderID = id
 			}
+			getASG := func(t *testing.T, g *WithT) {
+				t.Helper()
+
+				ec2Svc.EXPECT().GetLaunchTemplate(gomock.Any()).Return(nil, "", nil).AnyTimes()
+				asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(nil, nil).AnyTimes()
+			}
 			t.Run("should look up by provider ID when one exists", func(t *testing.T) {
 				g := NewWithT(t)
 				setup(t, g)
 				defer teardown(t, g)
 				setProviderID(t, g)
+				getASG(t, g)
 
 				expectedErr := errors.New("no connection available ")
 				ec2Svc.EXPECT().ReconcileLaunchTemplate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedErr)
@@ -380,7 +385,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			ec2Svc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 
 			ms.MachinePool.Annotations = map[string]string{
-				scope.ReplicasManagedByAnnotation: scope.ExternalAutoscalerReplicasManagedByAnnotationValue,
+				clusterv1.ReplicasManagedByAnnotation: "somehow-externally-managed",
 			}
 			ms.MachinePool.Spec.Replicas = pointer.Int32(0)
 
@@ -908,7 +913,7 @@ func TestDiffASG(t *testing.T) {
 					MachinePool: &expclusterv1.MachinePool{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
-								scope.ReplicasManagedByAnnotation: scope.ExternalAutoscalerReplicasManagedByAnnotationValue,
+								clusterv1.ReplicasManagedByAnnotation: "", // empty value counts as true (= externally managed)
 							},
 						},
 						Spec: expclusterv1.MachinePoolSpec{
