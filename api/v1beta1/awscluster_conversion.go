@@ -90,7 +90,7 @@ func (src *AWSCluster) ConvertTo(dstRaw conversion.Hub) error {
 		restoreIPAMPool(restored.Spec.NetworkSpec.VPC.IPv6.IPAMPool, dst.Spec.NetworkSpec.VPC.IPv6.IPAMPool)
 	}
 
-	dst.Spec.NetworkSpec.AdditionalControlPlaneIngressRules = restored.Spec.NetworkSpec.AdditionalControlPlaneIngressRules
+	dst.Spec.NetworkSpec.VPC.SecureDefaultVPCSecurityGroup = restored.Spec.NetworkSpec.VPC.SecureDefaultVPCSecurityGroup
 
 	// Restore SubnetSpec.ResourceID field, if any.
 	for _, subnet := range restored.Spec.NetworkSpec.Subnets {

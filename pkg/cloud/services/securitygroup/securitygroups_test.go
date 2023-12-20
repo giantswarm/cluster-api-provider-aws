@@ -35,6 +35,7 @@ import (
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/filter"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/test/mocks"
@@ -74,6 +75,7 @@ func TestReconcileSecurityGroups(t *testing.T) {
 					Tags: infrav1.Tags{
 						infrav1.ClusterTagKey("test-cluster"): "owned",
 					},
+					SecureDefaultVPCSecurityGroup: true,
 				},
 				Subnets: infrav1.Subnets{
 					infrav1.SubnetSpec{
@@ -90,6 +92,29 @@ func TestReconcileSecurityGroups(t *testing.T) {
 				},
 			},
 			expect: func(m *mocks.MockEC2APIMockRecorder) {
+				m.DescribeSecurityGroupsWithContext(context.TODO(), &ec2.DescribeSecurityGroupsInput{
+					Filters: []*ec2.Filter{
+						filter.EC2.VPC("vpc-securitygroups"),
+						filter.EC2.SecurityGroupName("default"),
+					},
+				}).
+					Return(&ec2.DescribeSecurityGroupsOutput{
+						SecurityGroups: []*ec2.SecurityGroup{
+							{
+								Description: aws.String("default VPC security group"),
+								GroupName:   aws.String("default"),
+								GroupId:     aws.String("sg-default"),
+							},
+						},
+					}, nil)
+				m.RevokeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupIngressInput{
+					GroupId: aws.String("sg-default"),
+				}))
+
+				m.RevokeSecurityGroupEgressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.RevokeSecurityGroupEgressInput{
+					GroupId: aws.String("sg-default"),
+				}))
+
 				m.DescribeSecurityGroupsWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.DescribeSecurityGroupsInput{})).
 					Return(&ec2.DescribeSecurityGroupsOutput{}, nil)
 
