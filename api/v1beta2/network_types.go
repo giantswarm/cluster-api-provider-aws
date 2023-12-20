@@ -323,6 +323,11 @@ type VPCSpec struct {
 	// +kubebuilder:default=Ordered
 	// +kubebuilder:validation:Enum=Ordered;Random
 	AvailabilityZoneSelection *AZSelectionScheme `json:"availabilityZoneSelection,omitempty"`
+
+	// SecureDefaultVPCSecurityGroup specifies whether the default VPC security group ingress
+	// and egress rules should be removed.
+	// +optional
+	SecureDefaultVPCSecurityGroup bool `json:"secureDefaultVPCSecurityGroup,omitempty"`
 }
 
 // String returns a string representation of the VPC.
