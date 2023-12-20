@@ -636,6 +636,11 @@ spec:
                               is set. Mutually exclusive with IPAMPool.
                             type: string
                         type: object
+                      secureDefaultVPCSecurityGroup:
+                        description: SecureDefaultVPCSecurityGroup specifies whether
+                          the default VPC security group ingress and egress rules
+                          should be removed.
+                        type: boolean
                       tags:
                         additionalProperties:
                           type: string
@@ -2222,6 +2227,11 @@ spec:
                               is set. Mutually exclusive with IPAMPool.
                             type: string
                         type: object
+                      secureDefaultVPCSecurityGroup:
+                        description: SecureDefaultVPCSecurityGroup specifies whether
+                          the default VPC security group ingress and egress rules
+                          should be removed.
+                        type: boolean
                       tags:
                         additionalProperties:
                           type: string
