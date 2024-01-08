@@ -394,7 +394,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			reconSvc.EXPECT().ReconcileTags(gomock.Any(), gomock.Any()).Return(nil)
 
 			ms.MachinePool.Annotations = map[string]string{
-				scope.ReplicasManagedByAnnotation: scope.ExternalAutoscalerReplicasManagedByAnnotationValue,
+				clusterv1.ReplicasManagedByAnnotation: "somehow-externally-managed",
 			}
 			ms.MachinePool.Spec.Replicas = pointer.Int32(0)
 
@@ -1161,7 +1161,7 @@ func TestDiffASG(t *testing.T) {
 					MachinePool: &expclusterv1.MachinePool{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
-								scope.ReplicasManagedByAnnotation: scope.ExternalAutoscalerReplicasManagedByAnnotationValue,
+								clusterv1.ReplicasManagedByAnnotation: "", // empty value counts as true (= externally managed)
 							},
 						},
 						Spec: expclusterv1.MachinePoolSpec{
