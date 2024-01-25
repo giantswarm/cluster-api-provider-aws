@@ -253,6 +253,7 @@ func (in *AWSMachinePoolSpec) DeepCopyInto(out *AWSMachinePoolSpec) {
 		copy(*out, *in)
 	}
 	out.DefaultCoolDown = in.DefaultCoolDown
+	out.DefaultInstanceWarmup = in.DefaultInstanceWarmup
 	if in.RefreshPreferences != nil {
 		in, out := &in.RefreshPreferences, &out.RefreshPreferences
 		*out = new(RefreshPreferences)
@@ -550,6 +551,7 @@ func (in *AutoScalingGroup) DeepCopyInto(out *AutoScalingGroup) {
 		copy(*out, *in)
 	}
 	out.DefaultCoolDown = in.DefaultCoolDown
+	out.DefaultInstanceWarmup = in.DefaultInstanceWarmup
 	if in.MixedInstancesPolicy != nil {
 		in, out := &in.MixedInstancesPolicy, &out.MixedInstancesPolicy
 		*out = new(MixedInstancesPolicy)
