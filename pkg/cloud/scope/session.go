@@ -126,7 +126,7 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 		conditions.MarkFalse(clusterScoper.InfraCluster(), infrav1.PrincipalCredentialRetrievedCondition, infrav1.PrincipalCredentialRetrievalFailedReason, clusterv1.ConditionSeverityError, err.Error())
 		return nil, nil, errors.Wrap(err, "Failed to get providers for cluster")
 	}
-	fmt.Println("got providers")
+	fmt.Printf("got providers %#v\n", providers)
 
 	isChanged := false
 	awsProviders := make([]credentials.Provider, len(providers))
@@ -163,11 +163,14 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 	fmt.Printf("awsConfig: %#v\n", awsConfig)
 
 	if len(providers) > 0 {
-		fmt.Printf("providers: %#v\n", providers)
+		fmt.Printf("providers: %#v\n", providers[])
 		// Check if identity credentials can be retrieved. One reason this will fail is that source identity is not authorized for assume role.
 		_, err := providers[0].Retrieve()
 		fmt.Println("executed Retrieve")
 		if err != nil {
+			fmt.Printf("failed provider: %s\n", providers[0].Name())
+			fmt.Printf("Retrieve resulted in error %s\n", err.Error())
+
 			conditions.MarkUnknown(clusterScoper.InfraCluster(), infrav1.PrincipalCredentialRetrievedCondition, infrav1.CredentialProviderBuildFailedReason, err.Error())
 
 			// delete the existing session from cache. Otherwise, we give back a defective session on next method invocation with same cluster scope
@@ -175,7 +178,7 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 
 			return nil, nil, errors.Wrap(err, "Failed to retrieve identity credentials")
 		}
-		fmt.Printf("tryong to get new credentials awsProviders: %v\n", awsProviders)
+		fmt.Printf("trying to get new credentials awsProviders: %v\n", awsProviders)
 		awsConfig = awsConfig.WithCredentials(credentials.NewChainCredentials(awsProviders))
 	}
 
@@ -327,6 +330,7 @@ func buildProvidersForRef(
 		} else {
 			provider = identity.NewAWSRolePrincipalTypeProvider(roleIdentity, nil, log)
 		}
+		fmt.Printf("build provider with %s, %s\n", roleIdentity.Name, roleIdentity.Spec.RoleArn)
 		providers = append(providers, provider)
 	default:
 		return providers, errors.Errorf("No such provider known: '%s'", ref.Kind)

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/gob"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -152,8 +153,10 @@ func (p *AWSRolePrincipalTypeProvider) Name() string {
 
 // Retrieve returns the credential values for the AWSRolePrincipalTypeProvider.
 func (p *AWSRolePrincipalTypeProvider) Retrieve() (credentials.Value, error) {
+	fmt.Printf("executed credentials.Retrieve")
 	if p.credentials == nil || p.IsExpired() {
 		awsConfig := aws.NewConfig()
+		fmt.Printf("Used basic Config without region %s, region %s\n", *awsConfig.Endpoint, *awsConfig.Region)
 		if p.sourceProvider != nil {
 			sourceCreds, err := (*p.sourceProvider).Retrieve()
 			if err != nil {
