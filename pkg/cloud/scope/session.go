@@ -163,7 +163,7 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 	fmt.Printf("awsConfig: %#v\n", awsConfig)
 
 	if len(providers) > 0 {
-		fmt.Printf("providers: %#v\n", providers[])
+		fmt.Printf("providers: %#v\n", providers)
 		// Check if identity credentials can be retrieved. One reason this will fail is that source identity is not authorized for assume role.
 		_, err := providers[0].Retrieve()
 		fmt.Println("executed Retrieve")
