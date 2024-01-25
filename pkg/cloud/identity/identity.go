@@ -153,10 +153,9 @@ func (p *AWSRolePrincipalTypeProvider) Name() string {
 
 // Retrieve returns the credential values for the AWSRolePrincipalTypeProvider.
 func (p *AWSRolePrincipalTypeProvider) Retrieve() (credentials.Value, error) {
-	fmt.Printf("executed credentials.Retrieve")
+	fmt.Printf("executed credentials.Retrieve\n")
 	if p.credentials == nil || p.IsExpired() {
-		awsConfig := aws.NewConfig()
-		fmt.Printf("Used basic Config without region %s, region %s\n", *awsConfig.Endpoint, *awsConfig.Region)
+		awsConfig := aws.NewConfig().WithRegion("cn-north-1")
 		if p.sourceProvider != nil {
 			sourceCreds, err := (*p.sourceProvider).Retrieve()
 			if err != nil {
