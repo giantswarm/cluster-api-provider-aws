@@ -119,18 +119,16 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 		}
 		return endpoints.DefaultResolver().EndpointFor(service, region, optFns...)
 	}
-	fmt.Println("trying to get providers")
+
 	providers, err := getProvidersForCluster(context.Background(), k8sClient, clusterScoper, log)
 	if err != nil {
 		// could not get providers and retrieve the credentials
 		conditions.MarkFalse(clusterScoper.InfraCluster(), infrav1.PrincipalCredentialRetrievedCondition, infrav1.PrincipalCredentialRetrievalFailedReason, clusterv1.ConditionSeverityError, err.Error())
 		return nil, nil, errors.Wrap(err, "Failed to get providers for cluster")
 	}
-	fmt.Printf("got providers %#v\n", providers)
 
 	isChanged := false
 	awsProviders := make([]credentials.Provider, len(providers))
-	fmt.Println("provider for loop")
 	for i, provider := range providers {
 		// load an existing matching providers from the cache if such a providers exists
 		providerHash, err := provider.Hash()
@@ -151,26 +149,18 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 	if !isChanged {
 		if s, ok := sessionCache.Load(getSessionName(region, clusterScoper)); ok {
 			entry := s.(*sessionCacheEntry)
-			fmt.Println("returning session from cache")
 			return entry.session, entry.serviceLimiters, nil
 		}
 	}
-	fmt.Println("creating new session without cache")
 	awsConfig := &aws.Config{
 		Region:           aws.String(region),
 		EndpointResolver: endpoints.ResolverFunc(resolver),
 	}
-	fmt.Printf("awsConfig: %#v\n", awsConfig)
 
 	if len(providers) > 0 {
-		fmt.Printf("providers: %#v\n", providers)
 		// Check if identity credentials can be retrieved. One reason this will fail is that source identity is not authorized for assume role.
 		_, err := providers[0].Retrieve()
-		fmt.Println("executed Retrieve")
 		if err != nil {
-			fmt.Printf("failed provider: %s\n", providers[0].Name())
-			fmt.Printf("Retrieve resulted in error %s\n", err.Error())
-
 			conditions.MarkUnknown(clusterScoper.InfraCluster(), infrav1.PrincipalCredentialRetrievedCondition, infrav1.CredentialProviderBuildFailedReason, err.Error())
 
 			// delete the existing session from cache. Otherwise, we give back a defective session on next method invocation with same cluster scope
@@ -178,13 +168,11 @@ func sessionForClusterWithRegion(k8sClient client.Client, clusterScoper cloud.Cl
 
 			return nil, nil, errors.Wrap(err, "Failed to retrieve identity credentials")
 		}
-		fmt.Printf("trying to get new credentials awsProviders: %v\n", awsProviders)
 		awsConfig = awsConfig.WithCredentials(credentials.NewChainCredentials(awsProviders))
 	}
 
 	conditions.MarkTrue(clusterScoper.InfraCluster(), infrav1.PrincipalCredentialRetrievedCondition)
 
-	fmt.Printf("executing NewSESSION awsConfig: %v\n", awsConfig)
 	ns, err := session.NewSession(awsConfig)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to create a new AWS session")
@@ -330,7 +318,6 @@ func buildProvidersForRef(
 		} else {
 			provider = identity.NewAWSRolePrincipalTypeProvider(roleIdentity, nil, log)
 		}
-		fmt.Printf("build provider with %s, %s\n", roleIdentity.Name, roleIdentity.Spec.RoleArn)
 		providers = append(providers, provider)
 	default:
 		return providers, errors.Errorf("No such provider known: '%s'", ref.Kind)
