@@ -102,9 +102,7 @@ type TargetGroupHealthCheck struct {
 // TargetGroupAttribute defines attribute key values for V2 Load Balancer Attributes.
 type TargetGroupAttribute string
 
-var (
-	TargetGroupAttributeEnablePreserveClientIP = "preserve_client_ip.enabled"
-)
+var TargetGroupAttributeEnablePreserveClientIP = "preserve_client_ip.enabled"
 
 // LoadBalancerAttribute defines a set of attributes for a V2 load balancer.
 type LoadBalancerAttribute string
@@ -474,6 +472,15 @@ func (s Subnets) FindEqual(spec *SubnetSpec) *SubnetSpec {
 func (s Subnets) FilterPrivate() (res Subnets) {
 	for _, x := range s {
 		if !x.IsPublic {
+			res = append(res, x)
+		}
+	}
+	return
+}
+
+func (s Subnets) FilterPrimary() (res Subnets) {
+	for _, x := range s {
+		if x.Tags[NameAWSSubnetAssociation] != SecondarySubnetTagValue {
 			res = append(res, x)
 		}
 	}
