@@ -510,6 +510,15 @@ func (s Subnets) FilterPrivate() (res Subnets) {
 	return
 }
 
+func (s Subnets) FilterPrimary() (res Subnets) {
+	for _, x := range s {
+		if x.Tags[NameAWSSubnetAssociation] != SecondarySubnetTagValue {
+			res = append(res, x)
+		}
+	}
+	return
+}
+
 // FilterPublic returns a slice containing all subnets marked as public.
 func (s Subnets) FilterPublic() (res Subnets) {
 	for _, x := range s {
