@@ -231,3 +231,8 @@ func (s *RosaMachinePoolScope) PatchCAPIMachinePoolObject(ctx context.Context) e
 func (s *RosaMachinePoolScope) Close() error {
 	return s.PatchObject()
 }
+
+// Region returns the cluster region.
+func (s *RosaMachinePoolScope) Region() string {
+	return s.Region()
+}

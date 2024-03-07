@@ -201,3 +201,8 @@ func (s *ROSAControlPlaneScope) PatchObject() error {
 func (s *ROSAControlPlaneScope) Close() error {
 	return s.PatchObject()
 }
+
+// Region returns the cluster region.
+func (s *ROSAControlPlaneScope) Region() string {
+	return s.Region()
+}
