@@ -61,6 +61,7 @@ func TestAWSStaticPrincipalTypeProvider(t *testing.T) {
 	var roleProvider AWSPrincipalTypeProvider = &AWSRolePrincipalTypeProvider{
 		credentials:    nil,
 		Principal:      roleIdentity,
+		region:         "us-west-2",
 		sourceProvider: &staticProvider,
 		stsClient:      stsMock,
 	}
@@ -78,6 +79,7 @@ func TestAWSStaticPrincipalTypeProvider(t *testing.T) {
 	var roleProvider2 AWSPrincipalTypeProvider = &AWSRolePrincipalTypeProvider{
 		credentials:    nil,
 		Principal:      roleIdentity2,
+		region:         "us-west-2",
 		sourceProvider: &roleProvider,
 		stsClient:      stsMock,
 	}
