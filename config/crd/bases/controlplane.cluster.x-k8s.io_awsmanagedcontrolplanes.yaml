@@ -647,6 +647,26 @@ spec:
                               is set. Mutually exclusive with IPAMPool.
                             type: string
                         type: object
+                      secondaryCidrBlocks:
+                        description: SecondaryCidrBlocks are additional CIDR blocks
+                          to be associated when the provider creates a managed VPC.
+                          Defaults to none. Mutually exclusive with IPAMPool. This
+                          makes sense to use if, for example, you want to use a separate
+                          IP range for pods (e.g. Cilium ENI mode).
+                        items:
+                          description: VpcCidrBlock defines the CIDR block and settings
+                            to associate with the managed VPC. Currently, only IPv4
+                            is supported.
+                          properties:
+                            ipv4CidrBlock:
+                              description: IPv4CidrBlock is the IPv4 CIDR block to
+                                associate with the managed VPC.
+                              minLength: 1
+                              type: string
+                          required:
+                          - ipv4CidrBlock
+                          type: object
+                        type: array
                       tags:
                         additionalProperties:
                           type: string
@@ -2244,6 +2264,54 @@ spec:
                               is set. Mutually exclusive with IPAMPool.
                             type: string
                         type: object
+<<<<<<< HEAD
+||||||| parent of e14cc8083 (Support adding custom secondary VPC CIDR blocks in `AWSCluster`)
+                      privateDnsHostnameTypeOnLaunch:
+                        description: PrivateDNSHostnameTypeOnLaunch is the type of
+                          hostname to assign to instances in the subnet at launch.
+                          For IPv4-only and dual-stack (IPv4 and IPv6) subnets, an
+                          instance DNS name can be based on the instance IPv4 address
+                          (ip-name) or the instance ID (resource-name). For IPv6 only
+                          subnets, an instance DNS name must be based on the instance
+                          ID (resource-name).
+                        enum:
+                        - ip-name
+                        - resource-name
+                        type: string
+=======
+                      privateDnsHostnameTypeOnLaunch:
+                        description: PrivateDNSHostnameTypeOnLaunch is the type of
+                          hostname to assign to instances in the subnet at launch.
+                          For IPv4-only and dual-stack (IPv4 and IPv6) subnets, an
+                          instance DNS name can be based on the instance IPv4 address
+                          (ip-name) or the instance ID (resource-name). For IPv6 only
+                          subnets, an instance DNS name must be based on the instance
+                          ID (resource-name).
+                        enum:
+                        - ip-name
+                        - resource-name
+                        type: string
+                      secondaryCidrBlocks:
+                        description: SecondaryCidrBlocks are additional CIDR blocks
+                          to be associated when the provider creates a managed VPC.
+                          Defaults to none. Mutually exclusive with IPAMPool. This
+                          makes sense to use if, for example, you want to use a separate
+                          IP range for pods (e.g. Cilium ENI mode).
+                        items:
+                          description: VpcCidrBlock defines the CIDR block and settings
+                            to associate with the managed VPC. Currently, only IPv4
+                            is supported.
+                          properties:
+                            ipv4CidrBlock:
+                              description: IPv4CidrBlock is the IPv4 CIDR block to
+                                associate with the managed VPC.
+                              minLength: 1
+                              type: string
+                          required:
+                          - ipv4CidrBlock
+                          type: object
+                        type: array
+>>>>>>> e14cc8083 (Support adding custom secondary VPC CIDR blocks in `AWSCluster`)
                       tags:
                         additionalProperties:
                           type: string
