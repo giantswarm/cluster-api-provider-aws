@@ -142,7 +142,7 @@ func (s *Service) reconcileVPC() error {
 
 	if !conditions.Has(s.scope.InfraCluster(), infrav1.VpcReadyCondition) {
 		conditions.MarkFalse(s.scope.InfraCluster(), infrav1.VpcReadyCondition, infrav1.VpcCreationStartedReason, clusterv1.ConditionSeverityInfo, "")
-		s.scope.Info("patching object", "cluster", s.scope.InfraCluster())
+		s.scope.Info("patching object vcp", "cluster", s.scope.InfraCluster())
 		if err := s.scope.PatchObject(); err != nil {
 			return errors.Wrap(err, "failed to patch conditions")
 		}
