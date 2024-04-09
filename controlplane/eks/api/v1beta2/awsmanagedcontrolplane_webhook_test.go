@@ -260,7 +260,7 @@ func TestWebhookCreate(t *testing.T) {
 			eksClusterName:       "default_cluster1",
 			eksVersion:           "v1.19",
 			expectError:          true,
-			expectErrorToContain: "100.64.0.0/16 must be listed in spec.network.vpc.secondaryCidrBlocks",
+			expectErrorToContain: "100.64.0.0/16 must be listed in AWSManagedControlPlane.spec.network.vpc.secondaryCidrBlocks",
 			secondaryCidr:        aws.String("100.64.0.0/16"),
 			secondaryCidrBlocks:  []infrav1.VpcCidrBlock{{IPv4CidrBlock: "123.456.0.0/16"}},
 		},
