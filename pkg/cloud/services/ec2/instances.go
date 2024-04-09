@@ -337,6 +337,13 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 				errMessage += fmt.Sprintf(" subnet %q is a private subnet.", *subnet.SubnetId)
 				continue
 			}
+
+			tags := converters.TagsToMap(subnet.Tags)
+			if tags[infrav1.NameAWSSubnetAssociation] == infrav1.SecondarySubnetTagValue {
+				errMessage += fmt.Sprintf(" subnet %q belongs to a secondary CIDR block which won't be used to create instances.", *subnet.SubnetId)
+				continue
+			}
+
 			filtered = append(filtered, subnet)
 		}
 		if len(filtered) == 0 {
