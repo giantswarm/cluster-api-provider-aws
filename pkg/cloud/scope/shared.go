@@ -95,7 +95,7 @@ func (p *defaultSubnetPlacementStrategy) Place(input *placementInput) ([]string,
 		return subnetIDs, nil
 	}
 
-	controlPlaneSubnetIDs := input.ControlplaneSubnets.FilterPrivate().IDs()
+	controlPlaneSubnetIDs := input.ControlplaneSubnets.FilterPrivate().FilterPrimary().IDs()
 	if len(controlPlaneSubnetIDs) > 0 {
 		p.logger.Debug("using all the private subnets from the control plane")
 		return controlPlaneSubnetIDs, nil
@@ -114,10 +114,9 @@ func (p *defaultSubnetPlacementStrategy) getSubnetsForAZs(azs []string, controlP
 			case expinfrav1.AZSubnetTypeAll:
 				// no-op
 			case expinfrav1.AZSubnetTypePublic:
-				subnets = subnets.FilterPublic()
+				subnets = subnets.FilterPublic().FilterPrimary()
 			case expinfrav1.AZSubnetTypePrivate:
-				subnets = subnets.FilterPrivate()
-				subnets = subnets.FilterPrimary()
+				subnets = subnets.FilterPrivate().FilterPrimary()
 			}
 		}
 		if len(subnets) == 0 {

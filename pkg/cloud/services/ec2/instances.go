@@ -348,7 +348,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		return *filtered[0].SubnetId, nil
 	case failureDomain != nil:
 		if scope.AWSMachine.Spec.PublicIP != nil && *scope.AWSMachine.Spec.PublicIP {
-			subnets := s.scope.Subnets().FilterPublic().FilterByZone(*failureDomain)
+			subnets := s.scope.Subnets().FilterPublic().FilterPrimary().FilterByZone(*failureDomain)
 			if len(subnets) == 0 {
 				errMessage := fmt.Sprintf("failed to run machine %q with public IP, no public subnets available in availability zone %q",
 					scope.Name(), *failureDomain)
@@ -358,7 +358,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 			return subnets[0].GetResourceID(), nil
 		}
 
-		subnets := s.scope.Subnets().FilterPrivate().FilterByZone(*failureDomain)
+		subnets := s.scope.Subnets().FilterPrivate().FilterPrimary().FilterByZone(*failureDomain)
 		if len(subnets) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q, no subnets available in availability zone %q",
 				scope.Name(), *failureDomain)
@@ -367,7 +367,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		}
 		return subnets[0].GetResourceID(), nil
 	case scope.AWSMachine.Spec.PublicIP != nil && *scope.AWSMachine.Spec.PublicIP:
-		subnets := s.scope.Subnets().FilterPublic()
+		subnets := s.scope.Subnets().FilterPublic().FilterPrimary()
 		if len(subnets) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q with public IP, no public subnets available", scope.Name())
 			record.Eventf(scope.AWSMachine, "FailedCreate", errMessage)
@@ -379,7 +379,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		// with control plane machines.
 
 	default:
-		sns := s.scope.Subnets().FilterPrivate()
+		sns := s.scope.Subnets().FilterPrivate().FilterPrimary()
 		if len(sns) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q, no subnets available", scope.Name())
 			record.Eventf(s.scope.InfraCluster(), "FailedCreateInstance", errMessage)
