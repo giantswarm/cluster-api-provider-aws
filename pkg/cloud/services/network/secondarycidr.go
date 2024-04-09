@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
 
-	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
 )
 
@@ -31,10 +30,8 @@ func isVPCPresent(vpcs *ec2.DescribeVpcsOutput) bool {
 }
 
 func (s *Service) associateSecondaryCidrs() error {
-	podSecondaryCidrBlock := s.scope.SecondaryCidrBlock()
-	secondaryCidrBlocks := s.scope.SecondaryCidrBlocks()
-
-	if podSecondaryCidrBlock == nil && len(secondaryCidrBlocks) == 0 {
+	secondaryCidrBlocks := s.scope.AllSecondaryCidrBlocks()
+	if len(secondaryCidrBlocks) == 0 {
 		return nil
 	}
 
@@ -47,16 +44,6 @@ func (s *Service) associateSecondaryCidrs() error {
 
 	if !isVPCPresent(vpcs) {
 		return errors.Errorf("failed to associateSecondaryCidr as there are no VPCs present")
-	}
-
-	// If only `AWSManagedControlPlane.spec.secondaryCidrBlock` is set, no additional checks are done to remain
-	// backward-compatible. The `VPCSpec.SecondaryCidrBlocks` field was added later - if that list is not empty, we
-	// require `AWSManagedControlPlane.spec.secondaryCidrBlock` to be listed in there as well (validation done in
-	// webhook).
-	if podSecondaryCidrBlock != nil && len(secondaryCidrBlocks) == 0 {
-		secondaryCidrBlocks = append(secondaryCidrBlocks, infrav1.VpcCidrBlock{
-			IPv4CidrBlock: *podSecondaryCidrBlock,
-		})
 	}
 
 	// We currently only *add* associations. Here, we do not reconcile exactly against the provided list
@@ -94,10 +81,8 @@ func (s *Service) associateSecondaryCidrs() error {
 }
 
 func (s *Service) disassociateSecondaryCidrs() error {
-	podSecondaryCidrBlock := s.scope.SecondaryCidrBlock()
 	secondaryCidrBlocks := s.scope.SecondaryCidrBlocks()
-
-	if podSecondaryCidrBlock == nil && len(secondaryCidrBlocks) == 0 {
+	if len(secondaryCidrBlocks) == 0 {
 		return nil
 	}
 
@@ -110,16 +95,6 @@ func (s *Service) disassociateSecondaryCidrs() error {
 
 	if !isVPCPresent(vpcs) {
 		return errors.Errorf("failed to disassociateSecondaryCidr as there are no VPCs present")
-	}
-
-	// If only `AWSManagedControlPlane.spec.secondaryCidrBlock` is set, no additional checks are done to remain
-	// backward-compatible. The `VPCSpec.SecondaryCidrBlocks` field was added later - if that list is not empty, we
-	// require `AWSManagedControlPlane.spec.secondaryCidrBlock` to be listed in there as well (validation done in
-	// webhook).
-	if podSecondaryCidrBlock != nil && len(secondaryCidrBlocks) == 0 {
-		secondaryCidrBlocks = append(secondaryCidrBlocks, infrav1.VpcCidrBlock{
-			IPv4CidrBlock: *podSecondaryCidrBlock,
-		})
 	}
 
 	existingAssociations := vpcs.Vpcs[0].CidrBlockAssociationSet

@@ -42,6 +42,9 @@ type NetworkScope interface {
 	SecondaryCidrBlock() *string
 	// SecondaryCidrBlocks returns the additional CIDR blocks to be associated with the managed VPC.
 	SecondaryCidrBlocks() []infrav1.VpcCidrBlock
+	// AllSecondaryCidrBlocks returns a unique list of all secondary CIDR blocks (combining `SecondaryCidrBlock` and
+	// `SecondaryCidrBlocks`).
+	AllSecondaryCidrBlocks() []infrav1.VpcCidrBlock
 
 	// Bastion returns the bastion details for the cluster.
 	Bastion() *infrav1.Bastion
