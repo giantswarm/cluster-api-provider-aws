@@ -28,8 +28,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
 
-	"sigs.k8s.io/cluster-api/util/conditions"
-
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/converters"
@@ -39,6 +37,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/tags"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/internal/cidr"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
+	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
 const (
