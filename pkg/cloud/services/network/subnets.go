@@ -102,10 +102,8 @@ func (s *Service) reconcileSubnets() error {
 		}
 	}
 
-	secondaryCidrBlocks := s.scope.AllSecondaryCidrBlocks()
-
-	for _, cidrBlock := range secondaryCidrBlocks {
-		subnetCIDRs, err := cidr.SplitIntoSubnetsIPv4(cidrBlock.IPv4CidrBlock, *s.scope.VPC().AvailabilityZoneUsageLimit)
+	if s.scope.SecondaryCidrBlock() != nil {
+		subnetCIDRs, err := cidr.SplitIntoSubnetsIPv4(*s.scope.SecondaryCidrBlock(), *s.scope.VPC().AvailabilityZoneUsageLimit)
 		if err != nil {
 			return err
 		}
