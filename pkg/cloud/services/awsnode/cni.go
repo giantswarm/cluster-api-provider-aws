@@ -281,7 +281,6 @@ func (s *Service) deleteResource(ctx context.Context, remoteClient client.Client
 		} else {
 			s.scope.Debug(fmt.Sprintf("resource %s was deleted", key))
 		}
-
 	}
 
 	return nil
