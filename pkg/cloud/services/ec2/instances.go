@@ -337,6 +337,13 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 				errMessage += fmt.Sprintf(" subnet %q is a private subnet.", *subnet.SubnetId)
 				continue
 			}
+
+			tags := converters.TagsToMap(subnet.Tags)
+			if tags[infrav1.NameAWSSubnetAssociation] == infrav1.SecondarySubnetTagValue {
+				errMessage += fmt.Sprintf(" subnet %q belongs to a secondary CIDR block which won't be used to create instances.", *subnet.SubnetId)
+				continue
+			}
+
 			filtered = append(filtered, subnet)
 		}
 		if len(filtered) == 0 {
@@ -348,7 +355,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		return *filtered[0].SubnetId, nil
 	case failureDomain != nil:
 		if scope.AWSMachine.Spec.PublicIP != nil && *scope.AWSMachine.Spec.PublicIP {
-			subnets := s.scope.Subnets().FilterPublic().FilterByZone(*failureDomain)
+			subnets := s.scope.Subnets().FilterPublic().FilterNonCni().FilterByZone(*failureDomain)
 			if len(subnets) == 0 {
 				errMessage := fmt.Sprintf("failed to run machine %q with public IP, no public subnets available in availability zone %q",
 					scope.Name(), *failureDomain)
@@ -358,7 +365,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 			return subnets[0].GetResourceID(), nil
 		}
 
-		subnets := s.scope.Subnets().FilterPrivate().FilterByZone(*failureDomain)
+		subnets := s.scope.Subnets().FilterPrivate().FilterNonCni().FilterByZone(*failureDomain)
 		if len(subnets) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q, no subnets available in availability zone %q",
 				scope.Name(), *failureDomain)
@@ -367,7 +374,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		}
 		return subnets[0].GetResourceID(), nil
 	case scope.AWSMachine.Spec.PublicIP != nil && *scope.AWSMachine.Spec.PublicIP:
-		subnets := s.scope.Subnets().FilterPublic()
+		subnets := s.scope.Subnets().FilterPublic().FilterNonCni()
 		if len(subnets) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q with public IP, no public subnets available", scope.Name())
 			record.Eventf(scope.AWSMachine, "FailedCreate", errMessage)
@@ -379,7 +386,7 @@ func (s *Service) findSubnet(scope *scope.MachineScope) (string, error) {
 		// with control plane machines.
 
 	default:
-		sns := s.scope.Subnets().FilterPrivate()
+		sns := s.scope.Subnets().FilterPrivate().FilterNonCni()
 		if len(sns) == 0 {
 			errMessage := fmt.Sprintf("failed to run machine %q, no subnets available", scope.Name())
 			record.Eventf(s.scope.InfraCluster(), "FailedCreateInstance", errMessage)
