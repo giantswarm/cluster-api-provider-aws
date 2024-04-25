@@ -32,6 +32,9 @@ import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/conditions"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
@@ -39,8 +42,6 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
 const (
@@ -520,6 +521,8 @@ func (s *Service) createLaunchTemplateData(scope scope.LaunchTemplateScope, imag
 	data.InstanceMarketOptions = getLaunchTemplateInstanceMarketOptionsRequest(scope.GetLaunchTemplate().SpotMarketOptions)
 	data.PrivateDnsNameOptions = getLaunchTemplatePrivateDNSNameOptionsRequest(scope.GetLaunchTemplate().PrivateDNSName)
 
+	blockDeviceMappings := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+
 	// Set up root volume
 	if lt.RootVolume != nil {
 		rootDeviceName, err := s.checkRootVolume(lt.RootVolume, *data.ImageId)
@@ -530,9 +533,22 @@ func (s *Service) createLaunchTemplateData(scope scope.LaunchTemplateScope, imag
 		lt.RootVolume.DeviceName = aws.StringValue(rootDeviceName)
 
 		req := volumeToLaunchTemplateBlockDeviceMappingRequest(lt.RootVolume)
-		data.BlockDeviceMappings = []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-			req,
+		blockDeviceMappings = append(blockDeviceMappings, req)
+	}
+
+	for vi := range lt.NonRootVolumes {
+		nonRootVolume := lt.NonRootVolumes[vi]
+
+		if nonRootVolume.DeviceName == "" {
+			return nil, errors.Errorf("non root volume should have device name specified")
 		}
+
+		blockDeviceMapping := volumeToLaunchTemplateBlockDeviceMappingRequest(&nonRootVolume)
+		blockDeviceMappings = append(blockDeviceMappings, blockDeviceMapping)
+	}
+
+	if len(blockDeviceMappings) > 0 {
+		data.BlockDeviceMappings = blockDeviceMappings
 	}
 
 	data.TagSpecifications = s.buildLaunchTemplateTagSpecificationRequest(scope, userDataSecretKey)
