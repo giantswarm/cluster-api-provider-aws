@@ -388,6 +388,13 @@ type IPAMPool struct {
 	NetmaskLength int64 `json:"netmaskLength,omitempty"`
 }
 
+// VpcCidrBlock defines the CIDR block and settings to associate with the managed VPC. Currently, only IPv4 is supported.
+type VpcCidrBlock struct {
+	// IPv4CidrBlock is the IPv4 CIDR block to associate with the managed VPC.
+	// +kubebuilder:validation:MinLength=1
+	IPv4CidrBlock string `json:"ipv4CidrBlock"`
+}
+
 // VPCSpec configures an AWS VPC.
 type VPCSpec struct {
 	// ID is the vpc-id of the VPC this provider should use to create resources.
@@ -397,6 +404,12 @@ type VPCSpec struct {
 	// Defaults to 10.0.0.0/16.
 	// Mutually exclusive with IPAMPool.
 	CidrBlock string `json:"cidrBlock,omitempty"`
+
+	// SecondaryCidrBlocks are additional CIDR blocks to be associated when the provider creates a managed VPC.
+	// Defaults to none. Mutually exclusive with IPAMPool. This makes sense to use if, for example, you want to use
+	// a separate IP range for pods (e.g. Cilium ENI mode).
+	// +optional
+	SecondaryCidrBlocks []VpcCidrBlock `json:"secondaryCidrBlocks,omitempty"`
 
 	// IPAMPool defines the IPAMv4 pool to be used for VPC.
 	// Mutually exclusive with CidrBlock.
@@ -715,10 +728,9 @@ func (s Subnets) FilterPrivate() (res Subnets) {
 	return
 }
 
-// FilterPrimary returns a slice containing all subnets that do not have the
-// sigs.k8s.io/cluster-api-provider-aws/association: secondary tag. These
-// subnets are intended for the CNI.
-func (s Subnets) FilterPrimary() (res Subnets) {
+// FilterNonCni returns the subnets that are NOT intended for usage with the CNI pod network
+// (i.e. do NOT have the `sigs.k8s.io/cluster-api-provider-aws/association=secondary` tag).
+func (s Subnets) FilterNonCni() (res Subnets) {
 	for _, x := range s {
 		if x.Tags[NameAWSSubnetAssociation] != SecondarySubnetTagValue {
 			res = append(res, x)
