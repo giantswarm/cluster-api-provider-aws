@@ -93,7 +93,6 @@ func (s *Service) ReconcileLaunchTemplate(
 	var bootstrapDataForLaunchTemplate []byte
 	if s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && ignitionScope.Ignition() != nil {
 		scope.Info("Using S3 bucket storage for Ignition format")
-		return errors.New("TODO ANDREAS: STOP, FIRST CHECK THAT OBJECTS' SPEC.IGNITION FIELD DOESN'T GET DEFAULTED BY MISTAKE SINCE THAT WOULD SCREW UP THE TEST MC OBJECTS PERMANENTLY")
 
 		// S3 bucket storage enabled and Ignition format is used. Ignition supports reading large user data from S3,
 		// not restricted by the EC2 user data size limit. The actual user data goes into the S3 object while the
@@ -152,6 +151,11 @@ func (s *Service) ReconcileLaunchTemplate(
 			if err != nil {
 				conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
 				return errors.Wrap(err, "failed to convert ignition config to JSON")
+			}
+
+			// TODO revert this feature toggle
+			if !strings.Contains(scope.LaunchTemplateName(), "andreas") {
+				bootstrapDataForLaunchTemplate = bootstrapData
 			}
 		default:
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
