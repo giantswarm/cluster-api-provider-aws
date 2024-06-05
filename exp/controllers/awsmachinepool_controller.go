@@ -155,6 +155,7 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Create the machine pool scope
 	machinePoolScope, err := scope.NewMachinePoolScope(scope.MachinePoolScopeParams{
+		Logger:         log,
 		Client:         r.Client,
 		Cluster:        cluster,
 		MachinePool:    machinePool,

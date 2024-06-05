@@ -156,6 +156,7 @@ func (r *AWSManagedMachinePoolReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	machinePoolScope, err := scope.NewManagedMachinePoolScope(scope.ManagedMachinePoolScopeParams{
+		Logger:               log,
 		Client:               r.Client,
 		ControllerName:       "awsmanagedmachinepool",
 		Cluster:              cluster,
