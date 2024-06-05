@@ -107,8 +107,9 @@ func (s *Service) ReconcileLaunchTemplate(
 		ignVersion := ignitionScope.Ignition().Version
 		semver, err := semver.ParseTolerant(ignVersion)
 		if err != nil {
+			err = errors.Wrapf(err, "failed to parse ignition version %q", ignVersion)
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
-			return errors.Wrapf(err, "failed to parse ignition version %q", ignVersion)
+			return err
 		}
 
 		switch semver.Major {
@@ -128,8 +129,9 @@ func (s *Service) ReconcileLaunchTemplate(
 
 			bootstrapDataForLaunchTemplate, err = json.Marshal(ignData)
 			if err != nil {
+				err = errors.Wrap(err, "failed to convert ignition config to JSON")
 				conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
-				return errors.Wrap(err, "failed to convert ignition config to JSON")
+				return err
 			}
 		case 3:
 			ignData := &ignV3Types.Config{
@@ -147,17 +149,14 @@ func (s *Service) ReconcileLaunchTemplate(
 
 			bootstrapDataForLaunchTemplate, err = json.Marshal(ignData)
 			if err != nil {
+				err = errors.Wrap(err, "failed to convert ignition config to JSON")
 				conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
-				return errors.Wrap(err, "failed to convert ignition config to JSON")
-			}
-
-			// TODO revert this feature toggle
-			if !strings.Contains(scope.LaunchTemplateName(), "andreas") {
-				bootstrapDataForLaunchTemplate = bootstrapData
+				return err
 			}
 		default:
+			err = errors.Errorf("unsupported ignition version %q", ignVersion)
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
-			return errors.Errorf("unsupported ignition version %q", ignVersion)
+			return err
 		}
 	} else {
 		// S3 bucket not used, so the user data is stored directly in the launch template

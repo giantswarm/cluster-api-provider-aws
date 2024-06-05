@@ -31,7 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	"github.com/pkg/errors"
-	"k8s.io/klog/v2"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	iam "sigs.k8s.io/cluster-api-provider-aws/v2/iam/api/v1beta1"
@@ -181,9 +180,9 @@ func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []b
 	}
 
 	bucket := s.bucketName()
-	key := s.bootstrapDataKeyForMachinePool(scope, data) // TODO this will create lots of objects but they're not cleaned up automatically (I need a lifecycle policy - is that costly? also add the permission so CAPA can do this!!; old launch template versions anyway won't work due to the join token expiring). at best, create a lifecycle policy on the bucket (easy to change later on if the feature changes).
+	key := s.bootstrapDataKeyForMachinePool(scope, data)
 
-	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(scope.GetMachinePool())) // TODO extra log field needed or does it come from scope?
+	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key)
 
 	if _, err := s.S3Client.PutObject(&s3.PutObjectInput{
 		Body:                 aws.ReadSeekCloser(bytes.NewReader(data)),
@@ -195,7 +194,7 @@ func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []b
 	}
 
 	if exp := s.scope.Bucket().PresignedURLDuration; exp != nil {
-		s.scope.Info("Generating presigned URL", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(scope.GetMachinePool())) // TODO extra log field needed or does it come from scope?
+		s.scope.Info("Generating presigned URL", "bucket_name", bucket, "key", key)
 		req, _ := s.S3Client.GetObjectRequest(&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),

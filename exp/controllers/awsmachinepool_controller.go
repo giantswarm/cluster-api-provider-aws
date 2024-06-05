@@ -376,7 +376,6 @@ func (r *AWSMachinePoolReconciler) reconcileDelete(machinePoolScope *scope.Machi
 
 	ec2Svc := r.getEC2Service(ec2Scope)
 	asgSvc := r.getASGService(clusterScope)
-	// TODO get object svc and delete files
 
 	asg, err := r.findASG(machinePoolScope, asgSvc)
 	if err != nil {
