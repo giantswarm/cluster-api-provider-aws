@@ -80,6 +80,10 @@ func (s *Service) ReconcileBucket() error {
 		return errors.Wrap(err, "ensuring bucket policy")
 	}
 
+	if err := s.ensureBucketLifecycleConfiguration(bucketName); err != nil {
+		return errors.Wrap(err, "ensuring bucket lifecycle configuration")
+	}
+
 	return nil
 }
 
@@ -293,6 +297,37 @@ func (s *Service) ensureBucketPolicy(bucketName string) error {
 	}
 
 	s.scope.Trace("Updated bucket policy", "bucket_name", bucketName)
+
+	return nil
+}
+
+func (s *Service) ensureBucketLifecycleConfiguration(bucketName string) error {
+	input := &s3.PutBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucketName),
+		LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
+			Rules: []*s3.LifecycleRule{
+				{
+					ID: aws.String("machine-pool"),
+					Expiration: &s3.LifecycleExpiration{
+						// The bootstrap token for new nodes to join the cluster is normally rotated regularly,
+						// such as in CAPI's `KubeadmConfig` reconciler. Therefore, the launch template user data
+						// stored in the S3 bucket only needs to live longer than the token TTL.
+						Days: aws.Int64(1),
+					},
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("machine-pool/"),
+					},
+					Status: aws.String(s3.ExpirationStatusEnabled),
+				},
+			},
+		},
+	}
+
+	if _, err := s.S3Client.PutBucketLifecycleConfiguration(input); err != nil {
+		return errors.Wrap(err, "creating S3 bucket lifecycle configuration")
+	}
+
+	s.scope.Trace("Updated bucket lifecycle configuration", "bucket_name", bucketName)
 
 	return nil
 }
