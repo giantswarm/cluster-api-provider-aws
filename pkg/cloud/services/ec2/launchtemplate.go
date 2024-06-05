@@ -75,8 +75,6 @@ func (s *Service) ReconcileLaunchTemplate(
 		record.Eventf(scope.GetMachinePool(), corev1.EventTypeWarning, "FailedGetBootstrapData", err.Error())
 		return err
 	}
-	bootstrapDataHash := userdata.ComputeHash(bootstrapData)
-
 	scope.Info("checking for existing launch template")
 	launchTemplate, launchTemplateUserDataHash, launchTemplateUserDataSecretKey, err := ec2svc.GetLaunchTemplate(scope.LaunchTemplateName())
 	if err != nil {
@@ -166,6 +164,8 @@ func (s *Service) ReconcileLaunchTemplate(
 		bootstrapDataForLaunchTemplate = bootstrapData
 	}
 
+	bootstrapDataForLaunchTemplateHash := userdata.ComputeHash(bootstrapDataForLaunchTemplate)
+
 	if launchTemplate == nil {
 		scope.Info("no existing launch template found, creating")
 		launchTemplateID, err := ec2svc.CreateLaunchTemplate(scope, imageID, *bootstrapDataSecretKey, bootstrapDataForLaunchTemplate)
@@ -234,7 +234,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		}
 	}
 
-	userDataHashChanged := launchTemplateUserDataHash != bootstrapDataHash
+	userDataHashChanged := launchTemplateUserDataHash != bootstrapDataForLaunchTemplateHash
 
 	// Create a new launch template version if there's a difference in configuration, tags,
 	// userdata, OR we've discovered a new AMI ID.
