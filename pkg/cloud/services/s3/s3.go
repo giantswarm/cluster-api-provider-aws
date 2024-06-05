@@ -377,7 +377,16 @@ func (s *Service) bucketPolicy(bucketName string) (string, error) {
 				iam.PrincipalAWS: []string{fmt.Sprintf("arn:%s:iam::%s:role/%s", partition, *accountID.Account, iamInstanceProfile)},
 			},
 			Action:   []string{"s3:GetObject"},
-			Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/node/*", partition, bucketName)}, // TODO add bucket policy for machine pool - same IAM instance profiles for the pools???
+			Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/node/*", partition, bucketName)},
+		})
+		statements = append(statements, iam.StatementEntry{
+			Sid:    iamInstanceProfile,
+			Effect: iam.EffectAllow,
+			Principal: map[iam.PrincipalType]iam.PrincipalID{
+				iam.PrincipalAWS: []string{fmt.Sprintf("arn:%s:iam::%s:role/%s", partition, *accountID.Account, iamInstanceProfile)},
+			},
+			Action:   []string{"s3:GetObject"},
+			Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/machine-pool/*", partition, bucketName)},
 		})
 	}
 
