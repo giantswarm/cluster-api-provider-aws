@@ -35,9 +35,6 @@ import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util/conditions"
-
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
@@ -45,6 +42,8 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/record"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/util/conditions"
 )
 
 const (
@@ -60,7 +59,7 @@ const (
 // ReconcileLaunchTemplate reconciles a launch template and triggers instance refresh conditionally, depending on
 // changes.
 //
-//nolint:gocyclo
+//nolint:gocyclo,maintidx
 func (s *Service) ReconcileLaunchTemplate(
 	ignitionScope scope.IgnitionScope,
 	scope scope.LaunchTemplateScope,

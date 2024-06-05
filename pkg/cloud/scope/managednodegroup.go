@@ -305,7 +305,7 @@ func (s *ManagedMachinePoolScope) ControllerName() string {
 	return s.controllerName
 }
 
-// Ignition gets the ignition config
+// Ignition gets the ignition config.
 func (s *ManagedMachinePoolScope) Ignition() *infrav1.Ignition {
 	return nil
 }

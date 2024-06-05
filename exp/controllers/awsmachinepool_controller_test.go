@@ -729,7 +729,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			expectedErr := errors.New("no connection available ")
 			asgSvc.EXPECT().GetASGByName(gomock.Any()).Return(nil, expectedErr).AnyTimes()
 
-			err := reconciler.reconcileDelete(ms, cs, cs, cs)
+			err := reconciler.reconcileDelete(ms, cs, cs)
 			g.Expect(errors.Cause(err)).To(MatchError(expectedErr))
 		})
 		t.Run("should log and remove finalizer when no machinepool exists", func(t *testing.T) {
@@ -744,7 +744,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 			buf := new(bytes.Buffer)
 			klog.SetOutput(buf)
 
-			err := reconciler.reconcileDelete(ms, cs, cs, cs)
+			err := reconciler.reconcileDelete(ms, cs, cs)
 			g.Expect(err).To(BeNil())
 			g.Expect(buf.String()).To(ContainSubstring("Unable to locate ASG"))
 			g.Expect(ms.AWSMachinePool.Finalizers).To(ConsistOf(metav1.FinalizerDeleteDependents))
@@ -765,7 +765,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 
 			buf := new(bytes.Buffer)
 			klog.SetOutput(buf)
-			err := reconciler.reconcileDelete(ms, cs, cs, cs)
+			err := reconciler.reconcileDelete(ms, cs, cs)
 			g.Expect(err).To(BeNil())
 			g.Expect(ms.AWSMachinePool.Status.Ready).To(BeFalse())
 			g.Eventually(recorder.Events).Should(Receive(ContainSubstring("DeletionInProgress")))

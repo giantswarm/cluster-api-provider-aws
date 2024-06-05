@@ -189,13 +189,13 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	switch infraScope := infraCluster.(type) {
 	case *scope.ManagedControlPlaneScope:
 		if !awsMachinePool.ObjectMeta.DeletionTimestamp.IsZero() {
-			return ctrl.Result{}, r.reconcileDelete(machinePoolScope, infraScope, infraScope, s3Scope)
+			return ctrl.Result{}, r.reconcileDelete(machinePoolScope, infraScope, infraScope)
 		}
 
 		return ctrl.Result{}, r.reconcileNormal(ctx, machinePoolScope, infraScope, infraScope, s3Scope)
 	case *scope.ClusterScope:
 		if !awsMachinePool.ObjectMeta.DeletionTimestamp.IsZero() {
-			return ctrl.Result{}, r.reconcileDelete(machinePoolScope, infraScope, infraScope, s3Scope)
+			return ctrl.Result{}, r.reconcileDelete(machinePoolScope, infraScope, infraScope)
 		}
 
 		return ctrl.Result{}, r.reconcileNormal(ctx, machinePoolScope, infraScope, infraScope, s3Scope)
@@ -371,7 +371,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 	return nil
 }
 
-func (r *AWSMachinePoolReconciler) reconcileDelete(machinePoolScope *scope.MachinePoolScope, clusterScope cloud.ClusterScoper, ec2Scope scope.EC2Scope, s3Scope scope.S3Scope) error {
+func (r *AWSMachinePoolReconciler) reconcileDelete(machinePoolScope *scope.MachinePoolScope, clusterScope cloud.ClusterScoper, ec2Scope scope.EC2Scope) error {
 	clusterScope.Info("Handling deleted AWSMachinePool")
 
 	ec2Svc := r.getEC2Service(ec2Scope)

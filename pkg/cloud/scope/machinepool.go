@@ -121,7 +121,7 @@ func NewMachinePoolScope(params MachinePoolScopeParams) (*MachinePoolScope, erro
 	}, nil
 }
 
-// Ignition gets the ignition config
+// Ignition gets the ignition config.
 func (m *MachinePoolScope) Ignition() *infrav1.Ignition {
 	return m.AWSMachinePool.Spec.Ignition
 }
