@@ -19,6 +19,7 @@ package services
 import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 
+	"sigs.k8s.io/cluster-api-provider-aws/pkg/cloud/services"
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
@@ -84,7 +85,7 @@ type EC2Interface interface {
 // separate from EC2Interface so that we can mock AWS requests separately. For example, by not mocking the
 // ReconcileLaunchTemplate function, but mocking EC2Interface, we can test which EC2 API operations would have been called.
 type MachinePoolReconcileInterface interface {
-	ReconcileLaunchTemplate(scope scope.LaunchTemplateScope, ec2svc EC2Interface, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
+	ReconcileLaunchTemplate(machinePoolScope *scope.MachinePoolScope, scope scope.LaunchTemplateScope, s3Scope scope.S3Scope, ec2svc EC2Interface, objectStoreSvc services.ObjectStoreInterface, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
 	ReconcileTags(scope scope.LaunchTemplateScope, resourceServicesToUpdate []scope.ResourceServiceToUpdate) error
 }
 
@@ -129,4 +130,5 @@ type ObjectStoreInterface interface {
 	ReconcileBucket() error
 	Delete(m *scope.MachineScope) error
 	Create(m *scope.MachineScope, data []byte) (objectURL string, err error)
+	CreateForMachinePool(m *scope.MachinePoolScope, data []byte) (objectURL string, err error)
 }

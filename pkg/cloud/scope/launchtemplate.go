@@ -38,7 +38,7 @@ type LaunchTemplateScope interface {
 	SetLaunchTemplateIDStatus(id string)
 	GetLaunchTemplateLatestVersionStatus() string
 	SetLaunchTemplateLatestVersionStatus(version string)
-	GetRawBootstrapData() ([]byte, *types.NamespacedName, error)
+	GetRawBootstrapData() ([]byte, string, *types.NamespacedName, error)
 
 	IsEKSManaged() bool
 	AdditionalTags() infrav1.Tags

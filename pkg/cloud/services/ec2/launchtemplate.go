@@ -26,6 +26,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/blang/semver"
+	ignTypes "github.com/coreos/ignition/config/v2_3/types"
+	ignV3Types "github.com/coreos/ignition/v2/config/v3_4/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -59,12 +62,15 @@ const (
 //
 //nolint:gocyclo
 func (s *Service) ReconcileLaunchTemplate(
+	machinePoolScope *scope.MachinePoolScope,
 	scope scope.LaunchTemplateScope,
+	s3Scope scope.S3Scope,
 	ec2svc services.EC2Interface,
+	objectStoreSvc services.ObjectStoreInterface,
 	canUpdateLaunchTemplate func() (bool, error),
 	runPostLaunchTemplateUpdateOperation func() error,
 ) error {
-	bootstrapData, bootstrapDataSecretKey, err := scope.GetRawBootstrapData()
+	bootstrapData, bootstrapDataFormat, bootstrapDataSecretKey, err := scope.GetRawBootstrapData()
 	if err != nil {
 		record.Eventf(scope.GetMachinePool(), corev1.EventTypeWarning, "FailedGetBootstrapData", err.Error())
 		return err
@@ -84,9 +90,81 @@ func (s *Service) ReconcileLaunchTemplate(
 		return err
 	}
 
+	var bootstrapDataForLaunchTemplate []byte
+	if s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && machinePoolScope.AWSMachinePool.Spec.Ignition != nil {
+		scope.Info("Using S3 bucket storage for Ignition format")
+		return errors.New("TODO ANDREAS: STOP, FIRST CHECK THAT OBJECTS' SPEC.IGNITION FIELD DOESN'T GET DEFAULTED BY MISTAKE SINCE THAT WOULD SCREW UP THE TEST MC OBJECTS PERMANENTLY")
+
+		// S3 bucket storage enabled and Ignition format is used. Ignition supports reading large user data from S3,
+		// not restricted by the EC2 user data size limit. The actual user data goes into the S3 object while the
+		// user data on the launch template points to the S3 bucket (or presigned URL).
+		// Previously, user data was always written into the launch template, so we check
+		// `AWSMachinePool.Spec.Ignition != nil` to toggle the S3 feature on for `AWSMachinePool` objects.
+		objectURL, err := objectStoreSvc.CreateForMachinePool(machinePoolScope, bootstrapData)
+
+		if err != nil {
+			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return err
+		}
+
+		ignVersion := machinePoolScope.AWSMachinePool.Spec.Ignition.Version
+		semver, err := semver.ParseTolerant(ignVersion)
+		if err != nil {
+			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return errors.Wrapf(err, "failed to parse ignition version %q", ignVersion)
+		}
+
+		switch semver.Major {
+		case 2:
+			ignData := &ignTypes.Config{
+				Ignition: ignTypes.Ignition{
+					Version: semver.String(),
+					Config: ignTypes.IgnitionConfig{
+						Append: []ignTypes.ConfigReference{
+							{
+								Source: objectURL,
+							},
+						},
+					},
+				},
+			}
+
+			bootstrapDataForLaunchTemplate, err = json.Marshal(ignData)
+			if err != nil {
+				conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				return errors.Wrap(err, "failed to convert ignition config to JSON")
+			}
+		case 3:
+			ignData := &ignV3Types.Config{
+				Ignition: ignV3Types.Ignition{
+					Version: semver.String(),
+					Config: ignV3Types.IgnitionConfig{
+						Merge: []ignV3Types.Resource{
+							{
+								Source: aws.String(objectURL),
+							},
+						},
+					},
+				},
+			}
+
+			bootstrapDataForLaunchTemplate, err = json.Marshal(ignData)
+			if err != nil {
+				conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
+				return errors.Wrap(err, "failed to convert ignition config to JSON")
+			}
+		default:
+			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
+			return errors.Errorf("unsupported ignition version %q", ignVersion)
+		}
+	} else {
+		// S3 bucket not used, so the user data is stored directly in the launch template
+		bootstrapDataForLaunchTemplate = bootstrapData
+	}
+
 	if launchTemplate == nil {
 		scope.Info("no existing launch template found, creating")
-		launchTemplateID, err := ec2svc.CreateLaunchTemplate(scope, imageID, *bootstrapDataSecretKey, bootstrapData)
+		launchTemplateID, err := ec2svc.CreateLaunchTemplate(scope, imageID, *bootstrapDataSecretKey, bootstrapDataForLaunchTemplate)
 		if err != nil {
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateCreateFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			return err
@@ -163,7 +241,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		if err := ec2svc.PruneLaunchTemplateVersions(scope.GetLaunchTemplateIDStatus()); err != nil {
 			return err
 		}
-		if err := ec2svc.CreateLaunchTemplateVersion(scope.GetLaunchTemplateIDStatus(), scope, imageID, *bootstrapDataSecretKey, bootstrapData); err != nil {
+		if err := ec2svc.CreateLaunchTemplateVersion(scope.GetLaunchTemplateIDStatus(), scope, imageID, *bootstrapDataSecretKey, bootstrapDataForLaunchTemplate); err != nil {
 			return err
 		}
 		version, err := ec2svc.GetLaunchTemplateLatestVersion(scope.GetLaunchTemplateIDStatus())
