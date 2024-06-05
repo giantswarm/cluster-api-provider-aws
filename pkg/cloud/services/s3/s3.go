@@ -163,13 +163,13 @@ func (s *Service) Create(m *scope.MachineScope, data []byte) (string, error) {
 	return objectURL.String(), nil
 }
 
-func (s *Service) CreateForMachinePool(m *scope.MachinePoolScope, data []byte) (string, error) {
+func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []byte) (string, error) {
 	if !s.bucketManagementEnabled() {
 		return "", errors.New("requested object creation but bucket management is not enabled")
 	}
 
-	if m == nil {
-		return "", errors.New("machine pool scope can't be nil")
+	if scope.LaunchTemplateName() == "" {
+		return "", errors.New("launch template name can't be empty")
 	}
 
 	if len(data) == 0 {
@@ -177,9 +177,9 @@ func (s *Service) CreateForMachinePool(m *scope.MachinePoolScope, data []byte) (
 	}
 
 	bucket := s.bucketName()
-	key := s.bootstrapDataKeyForMachinePool(m, data) // TODO this will create lots of objects but they're not cleaned up automatically (I need a lifecycle policy - is that costly? also add the permission so CAPA can do this!!; old launch template versions anyway won't work due to the join token expiring). at best, create a lifecycle policy on the bucket (easy to change later on if the feature changes).
+	key := s.bootstrapDataKeyForMachinePool(scope, data) // TODO this will create lots of objects but they're not cleaned up automatically (I need a lifecycle policy - is that costly? also add the permission so CAPA can do this!!; old launch template versions anyway won't work due to the join token expiring). at best, create a lifecycle policy on the bucket (easy to change later on if the feature changes).
 
-	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(m.AWSMachinePool)) // TODO extra log field needed or does it come from scope?
+	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(scope.GetMachinePool())) // TODO extra log field needed or does it come from scope?
 
 	if _, err := s.S3Client.PutObject(&s3.PutObjectInput{
 		Body:                 aws.ReadSeekCloser(bytes.NewReader(data)),
@@ -191,7 +191,7 @@ func (s *Service) CreateForMachinePool(m *scope.MachinePoolScope, data []byte) (
 	}
 
 	if exp := s.scope.Bucket().PresignedURLDuration; exp != nil {
-		s.scope.Info("Generating presigned URL", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(m.AWSMachinePool)) // TODO extra log field needed or does it come from scope?
+		s.scope.Info("Generating presigned URL", "bucket_name", bucket, "key", key, "machine-pool", klog.KObj(scope.GetMachinePool())) // TODO extra log field needed or does it come from scope?
 		req, _ := s.S3Client.GetObjectRequest(&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
@@ -407,6 +407,6 @@ func (s *Service) bootstrapDataKey(m *scope.MachineScope) string {
 	return path.Join(m.Role(), m.Name())
 }
 
-func (s *Service) bootstrapDataKeyForMachinePool(m *scope.MachinePoolScope, data []byte) string {
-	return path.Join("machine-pool", m.Name(), userdata.ComputeHash(data))
+func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, data []byte) string {
+	return path.Join("machine-pool", scope.LaunchTemplateName(), userdata.ComputeHash(data))
 }

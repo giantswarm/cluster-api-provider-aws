@@ -65,6 +65,21 @@ func (mr *MockObjectStoreInterfaceMockRecorder) Create(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockObjectStoreInterface)(nil).Create), arg0, arg1)
 }
 
+// CreateForMachinePool mocks base method.
+func (m *MockObjectStoreInterface) CreateForMachinePool(arg0 scope.LaunchTemplateScope, arg1 []byte) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateForMachinePool", arg0, arg1)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateForMachinePool indicates an expected call of CreateForMachinePool.
+func (mr *MockObjectStoreInterfaceMockRecorder) CreateForMachinePool(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateForMachinePool", reflect.TypeOf((*MockObjectStoreInterface)(nil).CreateForMachinePool), arg0, arg1)
+}
+
 // Delete mocks base method.
 func (m *MockObjectStoreInterface) Delete(arg0 *scope.MachineScope) error {
 	m.ctrl.T.Helper()

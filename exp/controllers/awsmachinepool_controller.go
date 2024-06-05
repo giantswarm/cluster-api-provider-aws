@@ -651,7 +651,7 @@ func (r *AWSMachinePoolReconciler) getInfraCluster(ctx context.Context, log *log
 			return nil, nil, err
 		}
 
-		return managedControlPlaneScope, nil, nil
+		return managedControlPlaneScope, managedControlPlaneScope, nil
 	}
 
 	awsCluster := &infrav1.AWSCluster{}

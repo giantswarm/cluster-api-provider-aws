@@ -62,7 +62,7 @@ const (
 //
 //nolint:gocyclo
 func (s *Service) ReconcileLaunchTemplate(
-	machinePoolScope *scope.MachinePoolScope,
+	ignitionScope scope.IgnitionScope,
 	scope scope.LaunchTemplateScope,
 	s3Scope scope.S3Scope,
 	ec2svc services.EC2Interface,
@@ -91,7 +91,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	}
 
 	var bootstrapDataForLaunchTemplate []byte
-	if s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && machinePoolScope.AWSMachinePool.Spec.Ignition != nil {
+	if s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && ignitionScope.Ignition() != nil {
 		scope.Info("Using S3 bucket storage for Ignition format")
 		return errors.New("TODO ANDREAS: STOP, FIRST CHECK THAT OBJECTS' SPEC.IGNITION FIELD DOESN'T GET DEFAULTED BY MISTAKE SINCE THAT WOULD SCREW UP THE TEST MC OBJECTS PERMANENTLY")
 
@@ -100,14 +100,14 @@ func (s *Service) ReconcileLaunchTemplate(
 		// user data on the launch template points to the S3 bucket (or presigned URL).
 		// Previously, user data was always written into the launch template, so we check
 		// `AWSMachinePool.Spec.Ignition != nil` to toggle the S3 feature on for `AWSMachinePool` objects.
-		objectURL, err := objectStoreSvc.CreateForMachinePool(machinePoolScope, bootstrapData)
+		objectURL, err := objectStoreSvc.CreateForMachinePool(scope, bootstrapData)
 
 		if err != nil {
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			return err
 		}
 
-		ignVersion := machinePoolScope.AWSMachinePool.Spec.Ignition.Version
+		ignVersion := ignitionScope.Ignition().Version
 		semver, err := semver.ParseTolerant(ignVersion)
 		if err != nil {
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.LaunchTemplateReadyCondition, expinfrav1.LaunchTemplateReconcileFailedReason, clusterv1.ConditionSeverityError, err.Error())
