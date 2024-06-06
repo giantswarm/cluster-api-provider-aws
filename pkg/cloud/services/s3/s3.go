@@ -100,6 +100,8 @@ func (s *Service) DeleteBucket() error {
 	// Delete machine pool user data files that did not get deleted
 	// yet by the lifecycle policy
 	for {
+		log.Info("Listing S3 objects of machine pools")
+
 		out, err := s.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
 			Bucket: aws.String(bucketName),
 			Prefix: aws.String("machine-pool/"),
@@ -113,7 +115,7 @@ func (s *Service) DeleteBucket() error {
 			break
 		}
 
-		log.Info("Deleting S3 files of machine pools", "count", len(out.Contents))
+		log.Info("Deleting S3 objects of machine pools", "count", len(out.Contents))
 		for _, obj := range out.Contents {
 			_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
 				Bucket: aws.String(bucketName),
