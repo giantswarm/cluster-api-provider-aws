@@ -36,6 +36,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	iam "sigs.k8s.io/cluster-api-provider-aws/v2/iam/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/util/system"
 )
 
@@ -81,6 +82,10 @@ func (s *Service) ReconcileBucket() error {
 
 	if err := s.ensureBucketPolicy(bucketName); err != nil {
 		return errors.Wrap(err, "ensuring bucket policy")
+	}
+
+	if err := s.ensureBucketLifecycleConfiguration(bucketName); err != nil {
+		return errors.Wrap(err, "ensuring bucket lifecycle configuration")
 	}
 
 	return nil
@@ -148,6 +153,51 @@ func (s *Service) Create(m *scope.MachineScope, data []byte) (string, error) {
 		ServerSideEncryption: aws.String("aws:kms"),
 	}); err != nil {
 		return "", errors.Wrap(err, "putting object")
+	}
+
+	if exp := s.scope.Bucket().PresignedURLDuration; exp != nil {
+		s.scope.Info("Generating presigned URL", "bucket_name", bucket, "key", key)
+		req, _ := s.S3Client.GetObjectRequest(&s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
+		return req.Presign(exp.Duration)
+	}
+
+	objectURL := &url.URL{
+		Scheme: "s3",
+		Host:   bucket,
+		Path:   key,
+	}
+
+	return objectURL.String(), nil
+}
+
+func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []byte) (string, error) {
+	if !s.bucketManagementEnabled() {
+		return "", errors.New("requested object creation but bucket management is not enabled")
+	}
+
+	if scope.LaunchTemplateName() == "" {
+		return "", errors.New("launch template name can't be empty")
+	}
+
+	if len(data) == 0 {
+		return "", errors.New("got empty data")
+	}
+
+	bucket := s.bucketName()
+	key := s.bootstrapDataKeyForMachinePool(scope, data)
+
+	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key)
+
+	if _, err := s.S3Client.PutObject(&s3.PutObjectInput{
+		Body:                 aws.ReadSeekCloser(bytes.NewReader(data)),
+		Bucket:               aws.String(bucket),
+		Key:                  aws.String(key),
+		ServerSideEncryption: aws.String("aws:kms"),
+	}); err != nil {
+		return "", errors.Wrap(err, "putting object for machine pool")
 	}
 
 	if exp := s.scope.Bucket().PresignedURLDuration; exp != nil {
@@ -285,6 +335,37 @@ func (s *Service) ensureBucketPolicy(bucketName string) error {
 	return nil
 }
 
+func (s *Service) ensureBucketLifecycleConfiguration(bucketName string) error {
+	input := &s3.PutBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucketName),
+		LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
+			Rules: []*s3.LifecycleRule{
+				{
+					ID: aws.String("machine-pool"),
+					Expiration: &s3.LifecycleExpiration{
+						// The bootstrap token for new nodes to join the cluster is normally rotated regularly,
+						// such as in CAPI's `KubeadmConfig` reconciler. Therefore, the launch template user data
+						// stored in the S3 bucket only needs to live longer than the token TTL.
+						Days: aws.Int64(1),
+					},
+					Filter: &s3.LifecycleRuleFilter{
+						Prefix: aws.String("machine-pool/"),
+					},
+					Status: aws.String(s3.ExpirationStatusEnabled),
+				},
+			},
+		},
+	}
+
+	if _, err := s.S3Client.PutBucketLifecycleConfiguration(input); err != nil {
+		return errors.Wrap(err, "creating S3 bucket lifecycle configuration")
+	}
+
+	s.scope.Trace("Updated bucket lifecycle configuration", "bucket_name", bucketName)
+
+	return nil
+}
+
 func (s *Service) tagBucket(bucketName string) error {
 	taggingInput := &s3.PutBucketTaggingInput{
 		Bucket: aws.String(bucketName),
@@ -371,6 +452,15 @@ func (s *Service) bucketPolicy(bucketName string) (string, error) {
 				Action:   []string{"s3:GetObject"},
 				Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/node/*", partition, bucketName)},
 			})
+			statements = append(statements, iam.StatementEntry{
+				Sid:    iamInstanceProfile,
+				Effect: iam.EffectAllow,
+				Principal: map[iam.PrincipalType]iam.PrincipalID{
+					iam.PrincipalAWS: []string{fmt.Sprintf("arn:%s:iam::%s:role/%s", partition, *accountID.Account, iamInstanceProfile)},
+				},
+				Action:   []string{"s3:GetObject"},
+				Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/machine-pool/*", partition, bucketName)},
+			})
 		}
 	}
 
@@ -398,4 +488,8 @@ func (s *Service) bucketName() string {
 func (s *Service) bootstrapDataKey(m *scope.MachineScope) string {
 	// Use machine name as object key.
 	return path.Join(m.Role(), m.Name())
+}
+
+func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, data []byte) string {
+	return path.Join("machine-pool", scope.LaunchTemplateName(), userdata.ComputeHash(data))
 }
