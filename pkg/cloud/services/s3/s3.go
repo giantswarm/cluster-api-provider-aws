@@ -107,7 +107,18 @@ func (s *Service) DeleteBucket() error {
 			Prefix: aws.String("machine-pool/"),
 		})
 		if err != nil {
-			return err
+			aerr, ok := err.(awserr.Error)
+			if !ok {
+				return errors.Wrap(err, "listing S3 bucket")
+			}
+
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				log.Info("Bucket already removed")
+				return nil
+			default:
+				return errors.Wrap(aerr, "listing S3 bucket")
+			}
 		}
 
 		// Stop on last page of results
