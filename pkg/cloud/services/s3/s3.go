@@ -97,7 +97,26 @@ func (s *Service) DeleteBucket() error {
 
 	log.Info("Deleting S3 Bucket")
 
-	_, err := s.S3Client.DeleteBucket(&s3.DeleteBucketInput{
+	// Delete machine pool user data files that did not get deleted
+	// yet by the lifecycle policy
+	out, err := s.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String("machine-pool/"),
+	})
+	if err != nil {
+		return err
+	}
+	for _, obj := range out.Contents {
+		_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    obj.Key,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = s.S3Client.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: aws.String(bucketName),
 	})
 	if err == nil {
