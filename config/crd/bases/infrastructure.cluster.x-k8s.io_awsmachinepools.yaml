@@ -884,6 +884,23 @@ spec:
                   after it enters the InService state.
                   If no value is supplied by user a default value of 300 seconds is set
                 type: string
+              ignition:
+                description: Ignition defined options related to the bootstrapping
+                  systems where Ignition is used.
+                properties:
+                  version:
+                    default: "2.3"
+                    description: Version defines which version of Ignition will be
+                      used to generate bootstrap data.
+                    enum:
+                    - "2.3"
+                    - "3.0"
+                    - "3.1"
+                    - "3.2"
+                    - "3.3"
+                    - "3.4"
+                    type: string
+                type: object
               maxSize:
                 default: 1
                 description: MaxSize defines the maximum size of the group.
