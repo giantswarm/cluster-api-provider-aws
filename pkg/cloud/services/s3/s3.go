@@ -97,6 +97,47 @@ func (s *Service) DeleteBucket() error {
 
 	log.Info("Deleting S3 Bucket")
 
+	// Delete machine pool user data files that did not get deleted
+	// yet by the lifecycle policy
+	for {
+		log.Info("Listing S3 objects of machine pools")
+
+		out, err := s.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
+			Bucket: aws.String(bucketName),
+			Prefix: aws.String("machine-pool/"),
+		})
+		if err != nil {
+			aerr, ok := err.(awserr.Error)
+			if !ok {
+				return errors.Wrap(err, "listing S3 bucket")
+			}
+
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				log.Info("Bucket already removed")
+				return nil
+			default:
+				return errors.Wrap(aerr, "listing S3 bucket")
+			}
+		}
+
+		// Stop on last page of results
+		if len(out.Contents) == 0 {
+			break
+		}
+
+		log.Info("Deleting S3 objects of machine pools", "count", len(out.Contents))
+		for _, obj := range out.Contents {
+			_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: aws.String(bucketName),
+				Key:    obj.Key,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	_, err := s.S3Client.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: aws.String(bucketName),
 	})
