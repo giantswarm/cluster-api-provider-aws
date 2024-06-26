@@ -344,7 +344,20 @@ func (s *Service) CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (boo
 	return true, nil
 }
 
-// StartASGInstanceRefresh will start an ASG instance with refresh.
+// CancelASGInstanceRefresh cancels an ASG instance refresh.
+func (s *Service) CancelASGInstanceRefresh(scope *scope.MachinePoolScope) error {
+	input := &autoscaling.CancelInstanceRefreshInput{
+		AutoScalingGroupName: aws.String(scope.Name()),
+	}
+
+	if _, err := s.ASGClient.CancelInstanceRefreshWithContext(context.TODO(), input); err != nil {
+		return errors.Wrapf(err, "failed to cancel ASG instance refresh %q", scope.Name())
+	}
+
+	return nil
+}
+
+// StartASGInstanceRefresh will start an ASG instance refresh.
 func (s *Service) StartASGInstanceRefresh(scope *scope.MachinePoolScope) error {
 	strategy := pointer.String(autoscaling.RefreshStrategyRolling)
 	var minHealthyPercentage, instanceWarmup *int64

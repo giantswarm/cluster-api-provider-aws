@@ -272,6 +272,10 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		}
 		return asgsvc.CanStartASGInstanceRefresh(machinePoolScope)
 	}
+	cancelInstanceRefresh := func() error {
+		machinePoolScope.Info("cancelling instance refresh")
+		return asgsvc.CancelASGInstanceRefresh(machinePoolScope)
+	}
 	runPostLaunchTemplateUpdateOperation := func() error {
 		// skip instance refresh if ASG is not created yet
 		if asg == nil {
@@ -295,7 +299,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		machinePoolScope.Info("starting instance refresh", "number of instances", machinePoolScope.MachinePool.Spec.Replicas)
 		return asgsvc.StartASGInstanceRefresh(machinePoolScope)
 	}
-	if err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2Svc, objectStoreSvc, canUpdateLaunchTemplate, runPostLaunchTemplateUpdateOperation); err != nil {
+	if err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2Svc, objectStoreSvc, canUpdateLaunchTemplate, cancelInstanceRefresh, runPostLaunchTemplateUpdateOperation); err != nil {
 		r.Recorder.Eventf(machinePoolScope.AWSMachinePool, corev1.EventTypeWarning, "FailedLaunchTemplateReconcile", "Failed to reconcile launch template: %v", err)
 		machinePoolScope.Error(err, "failed to reconcile launch template")
 		return err

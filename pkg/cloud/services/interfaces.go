@@ -40,6 +40,7 @@ type ASGInterface interface {
 	GetASGByName(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error)
 	CreateASG(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error)
 	UpdateASG(scope *scope.MachinePoolScope) error
+	CancelASGInstanceRefresh(scope *scope.MachinePoolScope) error
 	StartASGInstanceRefresh(scope *scope.MachinePoolScope) error
 	CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (bool, error)
 	UpdateResourceTags(resourceID *string, create, remove map[string]string) error
@@ -84,7 +85,7 @@ type EC2Interface interface {
 // separate from EC2Interface so that we can mock AWS requests separately. For example, by not mocking the
 // ReconcileLaunchTemplate function, but mocking EC2Interface, we can test which EC2 API operations would have been called.
 type MachinePoolReconcileInterface interface {
-	ReconcileLaunchTemplate(ignitionScope scope.IgnitionScope, scope scope.LaunchTemplateScope, s3Scope scope.S3Scope, ec2svc EC2Interface, objectStoreSvc ObjectStoreInterface, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
+	ReconcileLaunchTemplate(ignitionScope scope.IgnitionScope, scope scope.LaunchTemplateScope, s3Scope scope.S3Scope, ec2svc EC2Interface, objectStoreSvc ObjectStoreInterface, canUpdateLaunchTemplate func() (bool, error), cancelInstanceRefresh func() error, runPostLaunchTemplateUpdateOperation func() error) error
 	ReconcileTags(scope scope.LaunchTemplateScope, resourceServicesToUpdate []scope.ResourceServiceToUpdate) error
 }
 

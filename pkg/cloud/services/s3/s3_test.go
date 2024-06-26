@@ -99,7 +99,6 @@ func TestReconcileBucket(t *testing.T) {
 		s3Mock.EXPECT().PutBucketTagging(gomock.Eq(taggingInput)).Return(nil, nil).Times(1)
 
 		s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(1)
-		s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 		if err := svc.ReconcileBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -155,7 +154,6 @@ func TestReconcileBucket(t *testing.T) {
 
 		s3Mock.EXPECT().PutBucketTagging(gomock.Any()).Return(nil, nil).Times(1)
 		s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(1)
-		s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 		if err := svc.ReconcileBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -208,7 +206,6 @@ func TestReconcileBucket(t *testing.T) {
 				t.Errorf("Expected deny when not using SecureTransport; got: %v", policy)
 			}
 		}).Return(nil, nil).Times(1)
-		s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 		if err := svc.ReconcileBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -223,7 +220,6 @@ func TestReconcileBucket(t *testing.T) {
 		s3Mock.EXPECT().CreateBucket(gomock.Any()).Return(nil, nil).Times(2)
 		s3Mock.EXPECT().PutBucketTagging(gomock.Any()).Return(nil, nil).Times(2)
 		s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(2)
-		s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(2)
 
 		if err := svc.ReconcileBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -244,7 +240,6 @@ func TestReconcileBucket(t *testing.T) {
 		s3Mock.EXPECT().CreateBucket(gomock.Any()).Return(nil, err).Times(1)
 		s3Mock.EXPECT().PutBucketTagging(gomock.Any()).Return(nil, nil).Times(1)
 		s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(1)
-		s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 		if err := svc.ReconcileBucket(); err != nil {
 			t.Fatalf("Unexpected error, got: %v", err)

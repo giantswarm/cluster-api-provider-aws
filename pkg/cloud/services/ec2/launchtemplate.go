@@ -67,6 +67,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	ec2svc services.EC2Interface,
 	objectStoreSvc services.ObjectStoreInterface,
 	canUpdateLaunchTemplate func() (bool, error),
+	cancelInstanceRefresh func() error,
 	runPostLaunchTemplateUpdateOperation func() error,
 ) error {
 	bootstrapData, bootstrapDataFormat, bootstrapDataSecretKey, err := scope.GetRawBootstrapData()
@@ -222,13 +223,17 @@ func (s *Service) ReconcileLaunchTemplate(
 	launchTemplateNeedsUserDataSecretKeyTag := launchTemplateUserDataSecretKey == nil
 
 	if needsUpdate || tagsChanged || amiChanged || userDataSecretKeyChanged {
+		// More than just the bootstrap token changed
+
 		canUpdate, err := canUpdateLaunchTemplate()
 		if err != nil {
 			return err
 		}
 		if !canUpdate {
-			conditions.MarkFalse(scope.GetSetter(), expinfrav1.PreLaunchTemplateUpdateCheckCondition, expinfrav1.PreLaunchTemplateUpdateCheckFailedReason, clusterv1.ConditionSeverityWarning, "")
-			return errors.New("Cannot update the launch template, prerequisite not met")
+			err := cancelInstanceRefresh()
+			if err != nil {
+				return err
+			}
 		}
 	}
 

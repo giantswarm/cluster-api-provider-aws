@@ -52,17 +52,17 @@ func (m *MockMachinePoolReconcileInterface) EXPECT() *MockMachinePoolReconcileIn
 }
 
 // ReconcileLaunchTemplate mocks base method.
-func (m *MockMachinePoolReconcileInterface) ReconcileLaunchTemplate(arg0 scope.IgnitionScope, arg1 scope.LaunchTemplateScope, arg2 scope.S3Scope, arg3 services.EC2Interface, arg4 services.ObjectStoreInterface, arg5 func() (bool, error), arg6 func() error) error {
+func (m *MockMachinePoolReconcileInterface) ReconcileLaunchTemplate(arg0 scope.IgnitionScope, arg1 scope.LaunchTemplateScope, arg2 scope.S3Scope, arg3 services.EC2Interface, arg4 services.ObjectStoreInterface, arg5 func() (bool, error), arg6, arg7 func() error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReconcileLaunchTemplate", arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+	ret := m.ctrl.Call(m, "ReconcileLaunchTemplate", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ReconcileLaunchTemplate indicates an expected call of ReconcileLaunchTemplate.
-func (mr *MockMachinePoolReconcileInterfaceMockRecorder) ReconcileLaunchTemplate(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) *gomock.Call {
+func (mr *MockMachinePoolReconcileInterfaceMockRecorder) ReconcileLaunchTemplate(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileLaunchTemplate", reflect.TypeOf((*MockMachinePoolReconcileInterface)(nil).ReconcileLaunchTemplate), arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileLaunchTemplate", reflect.TypeOf((*MockMachinePoolReconcileInterface)(nil).ReconcileLaunchTemplate), arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 }
 
 // ReconcileTags mocks base method.
