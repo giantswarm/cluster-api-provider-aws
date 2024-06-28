@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -219,6 +220,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	// On change, we trigger instance refresh (rollout of new nodes). Therefore, do not consider it a change if the
 	// launch template does not have the respective tag yet, as it could be surprising to users. Instead, ensure the
 	// tag is stored on the newly-generated launch template version, without rolling out nodes.
+	fmt.Printf("ANDI launchTemplateUserDataSecretKey=%v bootstrapDataSecretKey=%v\n", launchTemplateUserDataSecretKey, bootstrapDataSecretKey)
 	userDataSecretKeyChanged := launchTemplateUserDataSecretKey != nil && bootstrapDataSecretKey.String() != launchTemplateUserDataSecretKey.String()
 	launchTemplateNeedsUserDataSecretKeyTag := launchTemplateUserDataSecretKey == nil
 
@@ -241,6 +243,7 @@ func (s *Service) ReconcileLaunchTemplate(
 
 	// Create a new launch template version if there's a difference in configuration, tags,
 	// userdata, OR we've discovered a new AMI ID.
+	// ANDI WEITER I BETTER PRINT the whole YAML object AWSMachinePool and the generated tags before/after in order to see what has changed and why I'm getting two changes. Most likely, it's the bootstrap data secret key changing first in the tags and then otherwise?! Or I'm reading my own change to the launch template on next reconciliation and therefore triggering another change??
 	if needsUpdate || tagsChanged || amiChanged || userDataHashChanged || userDataSecretKeyChanged || launchTemplateNeedsUserDataSecretKeyTag {
 		scope.Info("creating new version for launch template", "existing", launchTemplate, "incoming", scope.GetLaunchTemplate(), "needsUpdate", needsUpdate, "tagsChanged", tagsChanged, "amiChanged", amiChanged, "userDataHashChanged", userDataHashChanged, "userDataSecretKeyChanged", userDataSecretKeyChanged)
 		// There is a limit to the number of Launch Template Versions.
@@ -383,6 +386,7 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 			// strings.
 			deleted[t] = v.(string)
 			changed = true
+			fmt.Printf("ANDI tag deleted %q with value %v\n", t, v)
 		}
 	}
 
@@ -403,6 +407,7 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 
 		// Entry isn't in annotation, it's new.
 		if !ok {
+			fmt.Printf("ANDI tag new %q with value %v\n", t, v)
 			created[t] = v
 			newAnnotation[t] = v
 			changed = true
@@ -411,6 +416,7 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 
 		// Entry is in annotation, has the value changed?
 		if v != av {
+			fmt.Printf("ANDI tag changed %q from value %v to %v\n", t, v, av)
 			created[t] = v
 			changed = true
 		}
@@ -488,6 +494,7 @@ func (s *Service) CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID 
 	if err != nil {
 		return "", errors.Wrapf(err, "unable to form launch template data")
 	}
+	fmt.Printf("ANDI new launch template launchTemplateData.tags=%v\n", launchTemplateData.TagSpecifications)
 
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: launchTemplateData,
@@ -532,6 +539,7 @@ func (s *Service) CreateLaunchTemplateVersion(id string, scope scope.LaunchTempl
 	if err != nil {
 		return errors.Wrapf(err, "unable to form launch template data")
 	}
+	fmt.Printf("ANDI new launch template version launchTemplateData.tags=%v\n", launchTemplateData.TagSpecifications)
 
 	input := &ec2.CreateLaunchTemplateVersionInput{
 		LaunchTemplateData: launchTemplateData,
