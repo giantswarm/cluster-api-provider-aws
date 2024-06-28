@@ -207,7 +207,6 @@ func (s *Service) ReconcileLaunchTemplate(
 	}
 
 	// Check if the instance tags were changed. If they were, create a new LaunchTemplate.
-	fmt.Printf("ANDI checking tags\n")
 	tagsChanged, created, deleted, newAnnotation := tagsChanged(annotation, scope.AdditionalTags()) //nolint:dogsled
 
 	needsUpdate, err := ec2svc.LaunchTemplateNeedsUpdate(scope, scope.GetLaunchTemplate(), launchTemplate)
@@ -293,7 +292,6 @@ func (s *Service) ensureTags(scope scope.LaunchTemplateScope, resourceServicesTo
 	if err != nil {
 		return false, err
 	}
-	fmt.Printf("ANDI ensureTags annotation=%+v\n", annotation)
 
 	// Check if the instance tags were changed. If they were, update them.
 	// It would be possible here to only send new/updated tags, but for the
@@ -309,7 +307,6 @@ func (s *Service) ensureTags(scope scope.LaunchTemplateScope, resourceServicesTo
 		}
 
 		// We also need to update the annotation if anything changed.
-		fmt.Printf("ANDI ensureTags setting to newAnnotation=%+v\n", newAnnotation)
 		err = UpdateMachinePoolAnnotationJSON(scope, TagsLastAppliedAnnotation, newAnnotation)
 		if err != nil {
 			return false, err
@@ -332,7 +329,7 @@ func MachinePoolAnnotationJSON(lts scope.LaunchTemplateScope, annotation string)
 		return out, err
 	}
 
-	fmt.Printf("ANDI MachinePoolAnnotationJSON got these annotations: %+v\n", out)
+	// ANDI WEITER the new tags were added in cluster-aws, so let's create 2 dev `Release` objects that only contain my bootstrap secret systemd change
 	return out, nil
 }
 
@@ -363,7 +360,6 @@ func updateMachinePoolAnnotation(lts scope.LaunchTemplateScope, annotation, cont
 	annotations[annotation] = content
 
 	// Update the machine object with these annotations
-	fmt.Printf("ANDI updateMachinePoolAnnotation on AWSMachinePool: %+v\n", annotations)
 	lts.GetObjectMeta().SetAnnotations(annotations)
 }
 
@@ -393,7 +389,6 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 			// strings.
 			deleted[t] = v.(string)
 			changed = true
-			fmt.Printf("ANDI tag deleted %q with value %v\n", t, v)
 		}
 	}
 
@@ -414,7 +409,6 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 
 		// Entry isn't in annotation, it's new.
 		if !ok {
-			fmt.Printf("ANDI tag new %q with value %v\n", t, v)
 			created[t] = v
 			newAnnotation[t] = v
 			changed = true
@@ -423,7 +417,6 @@ func tagsChanged(annotation map[string]interface{}, src map[string]string) (bool
 
 		// Entry is in annotation, has the value changed?
 		if v != av {
-			fmt.Printf("ANDI tag changed %q from value %v to %v\n", t, v, av)
 			created[t] = v
 			changed = true
 		}
