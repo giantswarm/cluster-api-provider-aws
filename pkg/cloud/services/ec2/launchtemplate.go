@@ -71,6 +71,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	cancelInstanceRefresh func() error,
 	runPostLaunchTemplateUpdateOperation func() error,
 ) error {
+	fmt.Printf("ANDI reconcile launch template\n")
 	bootstrapData, bootstrapDataFormat, bootstrapDataSecretKey, err := scope.GetRawBootstrapData()
 	if err != nil {
 		record.Eventf(scope.GetMachinePool(), corev1.EventTypeWarning, "FailedGetBootstrapData", err.Error())
@@ -206,7 +207,8 @@ func (s *Service) ReconcileLaunchTemplate(
 	}
 
 	// Check if the instance tags were changed. If they were, create a new LaunchTemplate.
-	tagsChanged, _, _, _ := tagsChanged(annotation, scope.AdditionalTags()) //nolint:dogsled
+	fmt.Printf("ANDI checking tags\n")
+	tagsChanged, created, deleted, newAnnotation := tagsChanged(annotation, scope.AdditionalTags()) //nolint:dogsled
 
 	needsUpdate, err := ec2svc.LaunchTemplateNeedsUpdate(scope, scope.GetLaunchTemplate(), launchTemplate)
 	if err != nil {
@@ -220,7 +222,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	// On change, we trigger instance refresh (rollout of new nodes). Therefore, do not consider it a change if the
 	// launch template does not have the respective tag yet, as it could be surprising to users. Instead, ensure the
 	// tag is stored on the newly-generated launch template version, without rolling out nodes.
-	fmt.Printf("ANDI launchTemplateUserDataSecretKey=%v bootstrapDataSecretKey=%v\n", launchTemplateUserDataSecretKey, bootstrapDataSecretKey)
+	fmt.Printf("ANDI launchTemplateUserDataSecretKey=%v bootstrapDataSecretKey=%v created=%+v deleted=%+v newAnnotation=%+v\n", launchTemplateUserDataSecretKey, bootstrapDataSecretKey, created, deleted, newAnnotation)
 	userDataSecretKeyChanged := launchTemplateUserDataSecretKey != nil && bootstrapDataSecretKey.String() != launchTemplateUserDataSecretKey.String()
 	launchTemplateNeedsUserDataSecretKeyTag := launchTemplateUserDataSecretKey == nil
 
