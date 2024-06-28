@@ -293,6 +293,7 @@ func (s *Service) ensureTags(scope scope.LaunchTemplateScope, resourceServicesTo
 	if err != nil {
 		return false, err
 	}
+	fmt.Printf("ANDI ensureTags annotation=%+v\n", annotation)
 
 	// Check if the instance tags were changed. If they were, update them.
 	// It would be possible here to only send new/updated tags, but for the
@@ -308,6 +309,7 @@ func (s *Service) ensureTags(scope scope.LaunchTemplateScope, resourceServicesTo
 		}
 
 		// We also need to update the annotation if anything changed.
+		fmt.Printf("ANDI ensureTags setting to newAnnotation=%+v\n", newAnnotation)
 		err = UpdateMachinePoolAnnotationJSON(scope, TagsLastAppliedAnnotation, newAnnotation)
 		if err != nil {
 			return false, err
@@ -330,6 +332,7 @@ func MachinePoolAnnotationJSON(lts scope.LaunchTemplateScope, annotation string)
 		return out, err
 	}
 
+	fmt.Printf("ANDI MachinePoolAnnotationJSON got these annotations: %+v\n", out)
 	return out, nil
 }
 
@@ -351,6 +354,7 @@ func updateMachinePoolAnnotation(lts scope.LaunchTemplateScope, annotation, cont
 	// Get the annotations
 	annotations := lts.GetObjectMeta().GetAnnotations()
 
+	// ANDI WEITER ain't that totally missing the AdditionalTags? this code was never checked or improved since 2022, so it's likely!
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
@@ -359,6 +363,7 @@ func updateMachinePoolAnnotation(lts scope.LaunchTemplateScope, annotation, cont
 	annotations[annotation] = content
 
 	// Update the machine object with these annotations
+	fmt.Printf("ANDI updateMachinePoolAnnotation on AWSMachinePool: %+v\n", annotations)
 	lts.GetObjectMeta().SetAnnotations(annotations)
 }
 
