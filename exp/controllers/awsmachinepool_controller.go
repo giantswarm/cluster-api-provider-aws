@@ -19,10 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
@@ -279,16 +276,16 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		machinePoolScope.Info("cancelling instance refresh")
 		return asgsvc.CancelASGInstanceRefresh(machinePoolScope)
 	}
-	runPostLaunchTemplateUpdateOperation := func() (*ctrl.Result, error) {
+	runPostLaunchTemplateUpdateOperation := func() error {
 		// skip instance refresh if ASG is not created yet
 		if asg == nil {
 			machinePoolScope.Debug("ASG does not exist yet, skipping instance refresh")
-			return nil, nil
+			return nil
 		}
 		// skip instance refresh if explicitly disabled
 		if machinePoolScope.AWSMachinePool.Spec.RefreshPreferences != nil && machinePoolScope.AWSMachinePool.Spec.RefreshPreferences.Disable {
 			machinePoolScope.Debug("instance refresh disabled, skipping instance refresh")
-			return nil, nil
+			return nil
 		}
 		// After creating a new version of launch template, instance refresh is required
 		// to trigger a rolling replacement of all previously launched instances.
@@ -300,17 +297,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 		// Launch Template version, and the difference between the older and current versions is _more_
 		// than userdata, we should start an Instance Refresh.
 		machinePoolScope.Info("starting instance refresh", "number of instances", machinePoolScope.MachinePool.Spec.Replicas)
-		err := asgsvc.StartASGInstanceRefresh(machinePoolScope)
-		var aerr awserr.Error
-		if err != nil && errors.As(err, &aerr) && aerr.Code() == autoscaling.ErrCodeInstanceRefreshInProgressFault {
-			// This can happen, for instance, if we cancelled the previous
-			// instance refresh just now, and it's not in `Cancelled` state yet,
-			// meaning no new refresh can be started. Delay reconciliation
-			// for a bit.
-			machinePoolScope.Info("Previous instance refresh not finished/cancelled yet, cannot start another one")
-			return &ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-		}
-		return nil, err
+		return asgsvc.StartASGInstanceRefresh(machinePoolScope)
 	}
 	if err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2Svc, objectStoreSvc, canUpdateLaunchTemplate, cancelInstanceRefresh, runPostLaunchTemplateUpdateOperation); err != nil {
 		r.Recorder.Eventf(machinePoolScope.AWSMachinePool, corev1.EventTypeWarning, "FailedLaunchTemplateReconcile", "Failed to reconcile launch template: %v", err)

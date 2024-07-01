@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -70,7 +71,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	objectStoreSvc services.ObjectStoreInterface,
 	canUpdateLaunchTemplate func() (bool, error),
 	cancelInstanceRefresh func() error,
-	runPostLaunchTemplateUpdateOperation func() (*ctrl.Result, error),
+	runPostLaunchTemplateUpdateOperation func() error,
 ) (*ctrl.Result, error) {
 	fmt.Printf("ANDI reconcile launch template\n")
 	bootstrapData, bootstrapDataFormat, bootstrapDataSecretKey, err := scope.GetRawBootstrapData()
@@ -238,6 +239,14 @@ func (s *Service) ReconcileLaunchTemplate(
 			if err != nil {
 				return nil, err
 			}
+
+			// Until the previous instance refresh goes into `Cancelled` state
+			// asynchronously, allowing another refresh to be started,
+			// defer the reconciliation. Otherwise, we get an
+			// `ErrCodeInstanceRefreshInProgressFault` error if we tried to
+			// start an instance refresh immediately.
+			scope.Info("Cancelled previous instance refresh, delaying reconciliation until the next one can be started")
+			return &ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 	}
 
@@ -268,13 +277,10 @@ func (s *Service) ReconcileLaunchTemplate(
 	}
 
 	if needsUpdate || tagsChanged || amiChanged || userDataSecretKeyChanged {
-		res, err := runPostLaunchTemplateUpdateOperation()
+		err := runPostLaunchTemplateUpdateOperation()
 		if err != nil {
 			conditions.MarkFalse(scope.GetSetter(), expinfrav1.PostLaunchTemplateUpdateOperationCondition, expinfrav1.PostLaunchTemplateUpdateOperationFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			return nil, err
-		}
-		if res != nil {
-			return res, nil
 		}
 		conditions.MarkTrue(scope.GetSetter(), expinfrav1.PostLaunchTemplateUpdateOperationCondition)
 	}
