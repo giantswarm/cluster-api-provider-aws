@@ -218,8 +218,8 @@ func (r *AWSManagedMachinePoolReconciler) reconcileNormal(
 		cancelInstanceRefresh := func() error {
 			return nil
 		}
-		runPostLaunchTemplateUpdateOperation := func() (*ctrl.Result, error) {
-			return nil, nil
+		runPostLaunchTemplateUpdateOperation := func() error {
+			return nil
 		}
 		var objectStoreSvc services.ObjectStoreInterface = nil // no S3 bucket support for `AWSManagedControlPlane` yet
 		res, err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2svc, objectStoreSvc, canUpdateLaunchTemplate, cancelInstanceRefresh, runPostLaunchTemplateUpdateOperation)

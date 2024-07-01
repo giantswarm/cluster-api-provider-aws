@@ -26,6 +26,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	scope "sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	services "sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
+	reconcile "sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // MockMachinePoolReconcileInterface is a mock of MachinePoolReconcileInterface interface.
@@ -52,11 +53,12 @@ func (m *MockMachinePoolReconcileInterface) EXPECT() *MockMachinePoolReconcileIn
 }
 
 // ReconcileLaunchTemplate mocks base method.
-func (m *MockMachinePoolReconcileInterface) ReconcileLaunchTemplate(arg0 scope.IgnitionScope, arg1 scope.LaunchTemplateScope, arg2 scope.S3Scope, arg3 services.EC2Interface, arg4 services.ObjectStoreInterface, arg5 func() (bool, error), arg6, arg7 func() error) error {
+func (m *MockMachinePoolReconcileInterface) ReconcileLaunchTemplate(arg0 scope.IgnitionScope, arg1 scope.LaunchTemplateScope, arg2 scope.S3Scope, arg3 services.EC2Interface, arg4 services.ObjectStoreInterface, arg5 func() (bool, error), arg6, arg7 func() error) (*reconcile.Result, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReconcileLaunchTemplate", arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*reconcile.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ReconcileLaunchTemplate indicates an expected call of ReconcileLaunchTemplate.
