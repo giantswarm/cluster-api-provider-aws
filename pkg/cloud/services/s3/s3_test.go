@@ -332,6 +332,7 @@ func TestReconcileBucket(t *testing.T) {
 			s3Mock.EXPECT().CreateBucket(gomock.Eq(input)).Return(nil, nil).Times(1)
 			s3Mock.EXPECT().PutBucketTagging(gomock.Any()).Return(nil, nil).Times(1)
 			s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(1)
+			s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 			if err := svc.ReconcileBucket(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -368,11 +369,13 @@ func TestDeleteBucket(t *testing.T) {
 			Bucket: aws.String(bucketName),
 		}
 
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(input).Return(nil, nil).Times(1)
 
 		if err := svc.DeleteBucket(); err != nil {
 			t.Fatalf("Unexpected error, got: %v", err)
 		}
+
 	})
 
 	t.Run("returns_error_when_bucket_removal_returns", func(t *testing.T) {
@@ -382,6 +385,7 @@ func TestDeleteBucket(t *testing.T) {
 
 			svc, s3Mock := testService(t, &testServiceInput{Bucket: &infrav1.S3Bucket{}})
 
+			s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 			s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, errors.New("err")).Times(1)
 
 			if err := svc.DeleteBucket(); err == nil {
@@ -394,6 +398,7 @@ func TestDeleteBucket(t *testing.T) {
 
 			svc, s3Mock := testService(t, &testServiceInput{Bucket: &infrav1.S3Bucket{}})
 
+			s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 			s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("foo", "", nil)).Times(1)
 
 			if err := svc.DeleteBucket(); err == nil {
@@ -407,23 +412,13 @@ func TestDeleteBucket(t *testing.T) {
 
 		svc, s3Mock := testService(t, &testServiceInput{Bucket: &infrav1.S3Bucket{}})
 
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New(s3svc.ErrCodeNoSuchBucket, "", nil)).Times(1)
 
 		if err := svc.DeleteBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-	})
 
-	t.Run("skips_bucket_removal_when_bucket_is_not_empty", func(t *testing.T) {
-		t.Parallel()
-
-		svc, s3Mock := testService(t, &testServiceInput{Bucket: &infrav1.S3Bucket{}})
-
-		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("BucketNotEmpty", "", nil)).Times(1)
-
-		if err := svc.DeleteBucket(); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
 	})
 }
 
