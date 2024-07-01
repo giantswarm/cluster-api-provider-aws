@@ -212,8 +212,8 @@ func (r *AWSManagedMachinePoolReconciler) reconcileNormal(
 	reconSvc := r.getReconcileService(ec2Scope)
 
 	if machinePoolScope.ManagedMachinePool.Spec.AWSLaunchTemplate != nil {
-		canUpdateLaunchTemplate := func() (bool, error) {
-			return true, nil
+		canStartInstanceRefresh := func() (bool, *string, error) {
+			return true, nil, nil
 		}
 		cancelInstanceRefresh := func() error {
 			return nil
@@ -222,7 +222,7 @@ func (r *AWSManagedMachinePoolReconciler) reconcileNormal(
 			return nil
 		}
 		var objectStoreSvc services.ObjectStoreInterface = nil // no S3 bucket support for `AWSManagedControlPlane` yet
-		res, err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2svc, objectStoreSvc, canUpdateLaunchTemplate, cancelInstanceRefresh, runPostLaunchTemplateUpdateOperation)
+		res, err := reconSvc.ReconcileLaunchTemplate(machinePoolScope, machinePoolScope, s3Scope, ec2svc, objectStoreSvc, canStartInstanceRefresh, cancelInstanceRefresh, runPostLaunchTemplateUpdateOperation)
 		if err != nil {
 			r.Recorder.Eventf(machinePoolScope.ManagedMachinePool, corev1.EventTypeWarning, "FailedLaunchTemplateReconcile", "Failed to reconcile launch template: %v", err)
 			machinePoolScope.Error(err, "failed to reconcile launch template")

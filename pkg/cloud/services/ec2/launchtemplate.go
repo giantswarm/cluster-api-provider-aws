@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/blang/semver"
 	ignTypes "github.com/coreos/ignition/config/v2_3/types"
@@ -69,7 +70,7 @@ func (s *Service) ReconcileLaunchTemplate(
 	s3Scope scope.S3Scope,
 	ec2svc services.EC2Interface,
 	objectStoreSvc services.ObjectStoreInterface,
-	canUpdateLaunchTemplate func() (bool, error),
+	canStartInstanceRefresh func() (bool, *string, error),
 	cancelInstanceRefresh func() error,
 	runPostLaunchTemplateUpdateOperation func() error,
 ) (*ctrl.Result, error) {
@@ -230,22 +231,26 @@ func (s *Service) ReconcileLaunchTemplate(
 	if needsUpdate || tagsChanged || amiChanged || userDataSecretKeyChanged {
 		// More than just the bootstrap token changed
 
-		canUpdate, err := canUpdateLaunchTemplate()
+		canStartRefresh, unfinishedRefreshStatus, err := canStartInstanceRefresh()
 		if err != nil {
 			return nil, err
 		}
-		if !canUpdate {
-			err := cancelInstanceRefresh()
-			if err != nil {
-				return nil, err
-			}
+		if !canStartRefresh {
+			if unfinishedRefreshStatus != nil && *unfinishedRefreshStatus != autoscaling.InstanceRefreshStatusCancelling {
+				// Until the previous instance refresh goes into `Cancelled` state
+				// asynchronously, allowing another refresh to be started,
+				// defer the reconciliation. Otherwise, we get an
+				// `ErrCodeInstanceRefreshInProgressFault` error if we tried to
+				// start an instance refresh immediately.
+				scope.Info("Cancelling previous instance refresh and delaying reconciliation until the next one can be started", "unfinishedRefreshStatus", unfinishedRefreshStatus)
 
-			// Until the previous instance refresh goes into `Cancelled` state
-			// asynchronously, allowing another refresh to be started,
-			// defer the reconciliation. Otherwise, we get an
-			// `ErrCodeInstanceRefreshInProgressFault` error if we tried to
-			// start an instance refresh immediately.
-			scope.Info("Cancelled previous instance refresh, delaying reconciliation until the next one can be started")
+				err := cancelInstanceRefresh()
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				scope.Info("Existing instance refresh is not finished, delaying reconciliation until the next one can be started", "unfinishedRefreshStatus", unfinishedRefreshStatus)
+			}
 			return &ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 	}

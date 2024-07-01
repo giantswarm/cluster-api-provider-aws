@@ -67,12 +67,13 @@ func (mr *MockASGInterfaceMockRecorder) ASGIfExists(arg0 interface{}) *gomock.Ca
 }
 
 // CanStartASGInstanceRefresh mocks base method.
-func (m *MockASGInterface) CanStartASGInstanceRefresh(arg0 *scope.MachinePoolScope) (bool, error) {
+func (m *MockASGInterface) CanStartASGInstanceRefresh(arg0 *scope.MachinePoolScope) (bool, *string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CanStartASGInstanceRefresh", arg0)
 	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(*string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // CanStartASGInstanceRefresh indicates an expected call of CanStartASGInstanceRefresh.
