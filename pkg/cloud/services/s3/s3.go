@@ -33,6 +33,7 @@ import (
 	"github.com/pkg/errors"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	iam "sigs.k8s.io/cluster-api-provider-aws/v2/iam/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/userdata"
@@ -97,43 +98,46 @@ func (s *Service) DeleteBucket() error {
 
 	log.Info("Deleting S3 Bucket")
 
-	// Delete machine pool user data files that did not get deleted
-	// yet by the lifecycle policy
-	for {
-		log.Info("Listing S3 objects of machine pools")
+	if feature.Gates.Enabled(feature.MachinePool) {
+		// Delete machine pool user data files that did not get deleted
+		// yet by the lifecycle policy
+		for {
+			log.Info("Listing S3 objects of machine pools")
 
-		out, err := s.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
-			Bucket: aws.String(bucketName),
-			Prefix: aws.String("machine-pool/"),
-		})
-		if err != nil {
-			aerr, ok := err.(awserr.Error)
-			if !ok {
-				return errors.Wrap(err, "listing S3 bucket")
-			}
-
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				log.Info("Bucket already removed")
-				return nil
-			default:
-				return errors.Wrap(aerr, "listing S3 bucket")
-			}
-		}
-
-		// Stop on last page of results
-		if len(out.Contents) == 0 {
-			break
-		}
-
-		log.Info("Deleting S3 objects of machine pools", "count", len(out.Contents))
-		for _, obj := range out.Contents {
-			_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+			// TODO Switch to aws-sdk-go-v2 which has NewListObjectsV2Paginator (as part of https://github.com/kubernetes-sigs/cluster-api-provider-aws/issues/2225)
+			out, err := s.S3Client.ListObjectsV2(&s3.ListObjectsV2Input{
 				Bucket: aws.String(bucketName),
-				Key:    obj.Key,
+				Prefix: aws.String("machine-pool/"),
 			})
 			if err != nil {
-				return err
+				aerr, ok := err.(awserr.Error)
+				if !ok {
+					return errors.Wrap(err, "listing S3 bucket")
+				}
+
+				switch aerr.Code() {
+				case s3.ErrCodeNoSuchBucket:
+					log.Info("Bucket already removed")
+					return nil
+				default:
+					return errors.Wrap(aerr, "listing S3 bucket")
+				}
+			}
+
+			// Stop on last page of results
+			if len(out.Contents) == 0 {
+				break
+			}
+
+			log.Info("Deleting S3 objects of machine pools", "count", len(out.Contents))
+			for _, obj := range out.Contents {
+				_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+					Bucket: aws.String(bucketName),
+					Key:    obj.Key,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -342,6 +346,10 @@ func (s *Service) ensureBucketPolicy(bucketName string) error {
 }
 
 func (s *Service) ensureBucketLifecycleConfiguration(bucketName string) error {
+	if !feature.Gates.Enabled(feature.MachinePool) {
+		return nil
+	}
+
 	input := &s3.PutBucketLifecycleConfigurationInput{
 		Bucket: aws.String(bucketName),
 		LifecycleConfiguration: &s3.BucketLifecycleConfiguration{
