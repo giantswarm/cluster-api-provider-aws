@@ -18,6 +18,7 @@ package services
 
 import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
@@ -40,8 +41,9 @@ type ASGInterface interface {
 	GetASGByName(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error)
 	CreateASG(scope *scope.MachinePoolScope) (*expinfrav1.AutoScalingGroup, error)
 	UpdateASG(scope *scope.MachinePoolScope) error
+	CancelASGInstanceRefresh(scope *scope.MachinePoolScope) error
 	StartASGInstanceRefresh(scope *scope.MachinePoolScope) error
-	CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (bool, error)
+	CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (bool, *string, error)
 	UpdateResourceTags(resourceID *string, create, remove map[string]string) error
 	DeleteASGAndWait(id string) error
 	SuspendProcesses(name string, processes []string) error
@@ -84,7 +86,7 @@ type EC2Interface interface {
 // separate from EC2Interface so that we can mock AWS requests separately. For example, by not mocking the
 // ReconcileLaunchTemplate function, but mocking EC2Interface, we can test which EC2 API operations would have been called.
 type MachinePoolReconcileInterface interface {
-	ReconcileLaunchTemplate(ignitionScope scope.IgnitionScope, scope scope.LaunchTemplateScope, s3Scope scope.S3Scope, ec2svc EC2Interface, objectStoreSvc ObjectStoreInterface, canUpdateLaunchTemplate func() (bool, error), runPostLaunchTemplateUpdateOperation func() error) error
+	ReconcileLaunchTemplate(ignitionScope scope.IgnitionScope, scope scope.LaunchTemplateScope, s3Scope scope.S3Scope, ec2svc EC2Interface, objectStoreSvc ObjectStoreInterface, canUpdateLaunchTemplate func() (bool, *string, error), cancelInstanceRefresh func() error, runPostLaunchTemplateUpdateOperation func() error) (*ctrl.Result, error)
 	ReconcileTags(scope scope.LaunchTemplateScope, resourceServicesToUpdate []scope.ResourceServiceToUpdate) error
 }
 
