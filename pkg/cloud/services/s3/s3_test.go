@@ -418,7 +418,19 @@ func TestDeleteBucket(t *testing.T) {
 		if err := svc.DeleteBucket(); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
+	})
 
+	t.Run("skips_bucket_removal_when_bucket_is_not_empty", func(t *testing.T) {
+		t.Parallel()
+
+		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
+
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
+		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("BucketNotEmpty", "", nil)).Times(1)
+
+		if err := svc.DeleteBucket(); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 	})
 }
 
