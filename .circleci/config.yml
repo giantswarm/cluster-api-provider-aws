@@ -1,10 +1,26 @@
 version: 2.1
-
+orbs:
+  go: circleci/go@1.11.0
 
 jobs:
+  test:
+    resource_class: large
+    executor:
+      name: go/default
+      tag: "1.22.3"
+    steps:
+      - checkout
+      - go/load-cache
+      - go/mod-download
+      - run:
+          command: make setup-envtest
+      - go/save-cache
+      - run:
+          command: make test
+
   build:
     machine:
-      image: "ubuntu-2204:2022.10.2"
+      image: "ubuntu-2204:2024.05.1"
     environment:
       ALL_ARCH: "amd64 arm64"
       REGISTRY_AZURE: gsoci.azurecr.io/giantswarm
@@ -81,3 +97,4 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - test

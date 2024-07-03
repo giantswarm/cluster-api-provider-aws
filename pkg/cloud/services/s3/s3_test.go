@@ -338,6 +338,7 @@ func TestDeleteBucket(t *testing.T) {
 			Bucket: aws.String(bucketName),
 		}
 
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(input).Return(nil, nil).Times(1)
 
 		if err := svc.DeleteBucket(); err != nil {
@@ -352,6 +353,7 @@ func TestDeleteBucket(t *testing.T) {
 
 			svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
+			s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 			s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, errors.New("err")).Times(1)
 
 			if err := svc.DeleteBucket(); err == nil {
@@ -364,6 +366,7 @@ func TestDeleteBucket(t *testing.T) {
 
 			svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
+			s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 			s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("foo", "", nil)).Times(1)
 
 			if err := svc.DeleteBucket(); err == nil {
@@ -377,6 +380,7 @@ func TestDeleteBucket(t *testing.T) {
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New(s3svc.ErrCodeNoSuchBucket, "", nil)).Times(1)
 
 		if err := svc.DeleteBucket(); err != nil {
@@ -389,6 +393,7 @@ func TestDeleteBucket(t *testing.T) {
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
+		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("BucketNotEmpty", "", nil)).Times(1)
 
 		if err := svc.DeleteBucket(); err != nil {
