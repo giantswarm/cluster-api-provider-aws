@@ -279,7 +279,7 @@ func (in *AWSMachinePoolSpec) DeepCopyInto(out *AWSMachinePoolSpec) {
 	if in.Ignition != nil {
 		in, out := &in.Ignition, &out.Ignition
 		*out = new(apiv1beta2.Ignition)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 }
 
