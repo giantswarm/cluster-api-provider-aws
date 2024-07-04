@@ -99,4 +99,6 @@ type SessionMetadata interface {
 	InfraCluster() ClusterObject
 	// IdentityRef returns the AWS infrastructure cluster identityRef.
 	IdentityRef() *infrav1.AWSIdentityReference
+	// Region returns the cluster region.
+	Region() string
 }

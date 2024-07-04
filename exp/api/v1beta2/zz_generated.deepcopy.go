@@ -96,6 +96,13 @@ func (in *AWSLaunchTemplate) DeepCopyInto(out *AWSLaunchTemplate) {
 		*out = new(apiv1beta2.Volume)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.NonRootVolumes != nil {
+		in, out := &in.NonRootVolumes, &out.NonRootVolumes
+		*out = make([]apiv1beta2.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.SSHKeyName != nil {
 		in, out := &in.SSHKeyName, &out.SSHKeyName
 		*out = new(string)
@@ -268,6 +275,11 @@ func (in *AWSMachinePoolSpec) DeepCopyInto(out *AWSMachinePoolSpec) {
 		in, out := &in.SuspendProcesses, &out.SuspendProcesses
 		*out = new(SuspendProcessesTypes)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.Ignition != nil {
+		in, out := &in.Ignition, &out.Ignition
+		*out = new(apiv1beta2.Ignition)
+		**out = **in
 	}
 }
 
