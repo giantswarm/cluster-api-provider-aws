@@ -332,7 +332,6 @@ func TestReconcileBucket(t *testing.T) {
 			s3Mock.EXPECT().CreateBucket(gomock.Eq(input)).Return(nil, nil).Times(1)
 			s3Mock.EXPECT().PutBucketTagging(gomock.Any()).Return(nil, nil).Times(1)
 			s3Mock.EXPECT().PutBucketPolicy(gomock.Any()).Return(nil, nil).Times(1)
-			s3Mock.EXPECT().PutBucketLifecycleConfiguration(gomock.Any()).Return(nil, nil).Times(1)
 
 			if err := svc.ReconcileBucket(); err != nil {
 				t.Fatalf("Unexpected error: %v", err)
@@ -422,7 +421,7 @@ func TestDeleteBucket(t *testing.T) {
 	t.Run("skips_bucket_removal_when_bucket_is_not_empty", func(t *testing.T) {
 		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
-		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
+		svc, s3Mock := testService(t, &testServiceInput{Bucket: &infrav1.S3Bucket{}})
 
 		s3Mock.EXPECT().ListObjectsV2(gomock.Any()).Return(&s3svc.ListObjectsV2Output{}, nil).Times(1)
 		s3Mock.EXPECT().DeleteBucket(gomock.Any()).Return(nil, awserr.New("BucketNotEmpty", "", nil)).Times(1)
