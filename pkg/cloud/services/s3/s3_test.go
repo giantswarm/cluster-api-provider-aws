@@ -32,9 +32,11 @@ import (
 	"github.com/golang/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilfeature "k8s.io/component-base/featuregate/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	iamv1 "sigs.k8s.io/cluster-api-provider-aws/v2/iam/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/s3"
@@ -49,8 +51,6 @@ const (
 )
 
 func TestReconcileBucket(t *testing.T) {
-	t.Parallel()
-
 	t.Run("does_nothing_when_bucket_management_is_disabled", func(t *testing.T) {
 		t.Parallel()
 
@@ -62,7 +62,7 @@ func TestReconcileBucket(t *testing.T) {
 	})
 
 	t.Run("creates_bucket_with_configured_name", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		expectedBucketName := "baz"
 
@@ -107,7 +107,7 @@ func TestReconcileBucket(t *testing.T) {
 	})
 
 	t.Run("hashes_default_bucket_name_if_name_exceeds_maximum_length", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		mockCtrl := gomock.NewController(t)
 		s3Mock := mock_s3iface.NewMockS3API(mockCtrl)
@@ -163,7 +163,7 @@ func TestReconcileBucket(t *testing.T) {
 	})
 
 	t.Run("creates_bucket_with_policy_allowing_controlplane_and_worker_nodes_to_read_their_secrets", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		bucketName := "bar"
 
@@ -216,7 +216,7 @@ func TestReconcileBucket(t *testing.T) {
 	})
 
 	t.Run("is_idempotent", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
@@ -235,7 +235,7 @@ func TestReconcileBucket(t *testing.T) {
 	})
 
 	t.Run("ignores_when_bucket_already_exists_but_its_owned_by_the_same_account", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
@@ -318,7 +318,7 @@ func TestDeleteBucket(t *testing.T) {
 	const bucketName = "foo"
 
 	t.Run("does_nothing_when_bucket_management_is_disabled", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, _ := testService(t, nil)
 
@@ -328,7 +328,7 @@ func TestDeleteBucket(t *testing.T) {
 	})
 
 	t.Run("deletes_bucket_with_configured_name", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{
 			Name: bucketName,
@@ -347,9 +347,8 @@ func TestDeleteBucket(t *testing.T) {
 	})
 
 	t.Run("returns_error_when_bucket_removal_returns", func(t *testing.T) {
-		t.Parallel()
 		t.Run("unexpected_error", func(t *testing.T) {
-			t.Parallel()
+			defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 			svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
@@ -362,7 +361,7 @@ func TestDeleteBucket(t *testing.T) {
 		})
 
 		t.Run("unexpected_AWS_error", func(t *testing.T) {
-			t.Parallel()
+			defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 			svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
@@ -376,7 +375,7 @@ func TestDeleteBucket(t *testing.T) {
 	})
 
 	t.Run("ignores_when_bucket_has_already_been_removed", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
@@ -389,7 +388,7 @@ func TestDeleteBucket(t *testing.T) {
 	})
 
 	t.Run("skips_bucket_removal_when_bucket_is_not_empty", func(t *testing.T) {
-		t.Parallel()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePool, true)()
 
 		svc, s3Mock := testService(t, &infrav1.S3Bucket{})
 
