@@ -292,6 +292,46 @@ func (s *Service) Delete(m *scope.MachineScope) error {
 	return nil
 }
 
+func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, data []byte) error {
+	if !s.bucketManagementEnabled() {
+		return errors.New("requested object deletion but bucket management is not enabled")
+	}
+
+	if scope.LaunchTemplateName() == "" {
+		return errors.New("launch template name can't be empty")
+	}
+
+	if len(data) == 0 {
+		return errors.New("got empty data")
+	}
+
+	bucket := s.bucketName()
+	key := s.bootstrapDataKeyForMachinePool(scope, data)
+
+	s.scope.Info("Deleting object for machine pool", "bucket_name", bucket, "key", key)
+
+	_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err == nil {
+		return nil
+	}
+
+	aerr, ok := err.(awserr.Error)
+	if !ok {
+		return errors.Wrap(err, "deleting S3 object for machine pool")
+	}
+
+	switch aerr.Code() {
+	case s3.ErrCodeNoSuchBucket:
+	default:
+		return errors.Wrap(aerr, "deleting S3 object for machine pool")
+	}
+
+	return nil
+}
+
 func (s *Service) createBucketIfNotExist(bucketName string) error {
 	input := &s3.CreateBucketInput{
 		Bucket: aws.String(bucketName),

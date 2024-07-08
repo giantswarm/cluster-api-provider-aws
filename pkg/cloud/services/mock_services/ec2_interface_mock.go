@@ -23,6 +23,7 @@ package mock_services
 import (
 	reflect "reflect"
 
+	ec2 "github.com/aws/aws-sdk-go/service/ec2"
 	gomock "github.com/golang/mock/gomock"
 	types "k8s.io/apimachinery/pkg/types"
 	v1beta2 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
@@ -306,11 +307,12 @@ func (mr *MockEC2InterfaceMockRecorder) ModifyInstanceMetadataOptions(arg0, arg1
 }
 
 // PruneLaunchTemplateVersions mocks base method.
-func (m *MockEC2Interface) PruneLaunchTemplateVersions(arg0 string) error {
+func (m *MockEC2Interface) PruneLaunchTemplateVersions(arg0 string) (*ec2.LaunchTemplateVersion, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PruneLaunchTemplateVersions", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(*ec2.LaunchTemplateVersion)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PruneLaunchTemplateVersions indicates an expected call of PruneLaunchTemplateVersions.

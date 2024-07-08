@@ -556,7 +556,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(pointer.String("ami-different"), nil)
 				ec2Svc.EXPECT().LaunchTemplateNeedsUpdate(gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil)
 				asgSvc.EXPECT().CanStartASGInstanceRefresh(gomock.Any()).Return(true, nil, nil)
-				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil)
+				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil, nil)
 				ec2Svc.EXPECT().CreateLaunchTemplateVersion(gomock.Any(), gomock.Any(), gomock.Eq(pointer.String("ami-different")), gomock.Eq(apimachinerytypes.NamespacedName{Namespace: "default", Name: "bootstrap-data"}), gomock.Any()).Return(nil)
 				ec2Svc.EXPECT().GetLaunchTemplateLatestVersion(gomock.Any()).Return("2", nil)
 				// AMI change should trigger rolling out new nodes
@@ -604,7 +604,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(pointer.String("ami-existing"), nil)
 				ec2Svc.EXPECT().LaunchTemplateNeedsUpdate(gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil)
 				asgSvc.EXPECT().CanStartASGInstanceRefresh(gomock.Any()).Return(true, nil, nil)
-				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil)
+				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil, nil)
 				ec2Svc.EXPECT().CreateLaunchTemplateVersion(gomock.Any(), gomock.Any(), gomock.Eq(pointer.String("ami-existing")), gomock.Eq(apimachinerytypes.NamespacedName{Namespace: "default", Name: "bootstrap-data"}), gomock.Any()).Return(nil)
 				ec2Svc.EXPECT().GetLaunchTemplateLatestVersion(gomock.Any()).Return("2", nil)
 				// Changing the bootstrap data secret name should trigger rolling out new nodes, no matter what the
@@ -679,7 +679,7 @@ func TestAWSMachinePoolReconciler(t *testing.T) {
 				ec2Svc.EXPECT().DiscoverLaunchTemplateAMI(gomock.Any()).Return(pointer.String("ami-existing"), nil)
 				ec2Svc.EXPECT().LaunchTemplateNeedsUpdate(gomock.Any(), gomock.Any(), gomock.Any()).Return(false, nil)
 				asgSvc.EXPECT().CanStartASGInstanceRefresh(gomock.Any()).Return(true, nil, nil)
-				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil)
+				ec2Svc.EXPECT().PruneLaunchTemplateVersions(gomock.Any()).Return(nil, nil)
 				ec2Svc.EXPECT().CreateLaunchTemplateVersion(gomock.Any(), gomock.Any(), gomock.Eq(pointer.String("ami-existing")), gomock.Eq(apimachinerytypes.NamespacedName{Namespace: "default", Name: "bootstrap-data-new"}), gomock.Any()).Return(nil)
 				ec2Svc.EXPECT().GetLaunchTemplateLatestVersion(gomock.Any()).Return("2", nil)
 				// Changing the bootstrap data secret name should trigger rolling out new nodes, no matter what the

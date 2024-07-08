@@ -258,11 +258,31 @@ func (s *Service) ReconcileLaunchTemplate(
 	// userdata, OR we've discovered a new AMI ID.
 	if needsUpdate || tagsChanged || amiChanged || userDataHashChanged || userDataSecretKeyChanged || launchTemplateNeedsUserDataSecretKeyTag {
 		scope.Info("creating new version for launch template", "existing", launchTemplate, "incoming", scope.GetLaunchTemplate(), "needsUpdate", needsUpdate, "tagsChanged", tagsChanged, "amiChanged", amiChanged, "userDataHashChanged", userDataHashChanged, "userDataSecretKeyChanged", userDataSecretKeyChanged)
+
 		// There is a limit to the number of Launch Template Versions.
 		// We ensure that the number of versions does not grow without bound by following a simple rule: Before we create a new version, we delete one old version, if there is at least one old version that is not in use.
-		if err := ec2svc.PruneLaunchTemplateVersions(scope.GetLaunchTemplateIDStatus()); err != nil {
+		deletedLaunchTemplateVersion, err := ec2svc.PruneLaunchTemplateVersions(scope.GetLaunchTemplateIDStatus())
+		if err != nil {
 			return nil, err
 		}
+
+		// S3 objects should be deleted as soon as possible if they're not used
+		// anymore. If this fails, it would still be cleaned by the bucket lifecycle
+		// policy later.
+		if deletedLaunchTemplateVersion != nil && deletedLaunchTemplateVersion.LaunchTemplateData.UserData != nil && len(*deletedLaunchTemplateVersion.LaunchTemplateData.UserData) > 0 && s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && ignitionScope.Ignition() != nil {
+			scope.Info("Deleting S3 object for deleted launch template version", "version", *deletedLaunchTemplateVersion.VersionNumber)
+
+			decodedUserDataOfDeletedLaunchTemplateVersion, err := base64.StdEncoding.DecodeString(*deletedLaunchTemplateVersion.LaunchTemplateData.UserData)
+			if err == nil {
+				err = objectStoreSvc.DeleteForMachinePool(scope, decodedUserDataOfDeletedLaunchTemplateVersion)
+			}
+
+			// If any error happened above, log it and continue
+			if err != nil {
+				scope.Error(err, "Failed to delete S3 object for deleted launch template version, continuing because the bucket lifecycle policy will clean it later", "version", *deletedLaunchTemplateVersion.VersionNumber)
+			}
+		}
+
 		if err := ec2svc.CreateLaunchTemplateVersion(scope.GetLaunchTemplateIDStatus(), scope, imageID, *bootstrapDataSecretKey, bootstrapDataForLaunchTemplate); err != nil {
 			return nil, err
 		}
@@ -703,7 +723,9 @@ func (s *Service) DeleteLaunchTemplate(id string) error {
 // It does not delete the "latest" version, because that version may still be in use.
 // It does not delete the "default" version, because that version cannot be deleted.
 // It does not assume that versions are sequential. Versions may be deleted out of band.
-func (s *Service) PruneLaunchTemplateVersions(id string) error {
+// If there was an unused version, it is returned together with any error that
+// happened during deletion.
+func (s *Service) PruneLaunchTemplateVersions(id string) (*ec2.LaunchTemplateVersion, error) {
 	// When there is one version available, it is the default and the latest.
 	// When there are two versions available, one the is the default, the other is the latest.
 	// Therefore we only prune when there are at least 3 versions available.
@@ -719,7 +741,7 @@ func (s *Service) PruneLaunchTemplateVersions(id string) error {
 	out, err := s.EC2Client.DescribeLaunchTemplateVersionsWithContext(context.TODO(), input)
 	if err != nil {
 		s.scope.Info("", "aerr", err.Error())
-		return err
+		return nil, err
 	}
 
 	// len(out.LaunchTemplateVersions)	|	items
@@ -728,10 +750,10 @@ func (s *Service) PruneLaunchTemplateVersions(id string) error {
 	// 								2	|	[default, latest]
 	// 								3	| 	[default, versionToPrune, latest]
 	if len(out.LaunchTemplateVersions) < minCountToAllowPrune {
-		return nil
+		return nil, nil
 	}
-	versionToPrune := out.LaunchTemplateVersions[1].VersionNumber
-	return s.deleteLaunchTemplateVersion(id, versionToPrune)
+	versionToPrune := out.LaunchTemplateVersions[1]
+	return versionToPrune, s.deleteLaunchTemplateVersion(id, versionToPrune.VersionNumber)
 }
 
 func (s *Service) GetLaunchTemplateLatestVersion(id string) (string, error) {
@@ -754,11 +776,11 @@ func (s *Service) GetLaunchTemplateLatestVersion(id string) (string, error) {
 }
 
 func (s *Service) deleteLaunchTemplateVersion(id string, version *int64) error {
-	s.scope.Debug("Deleting launch template version", "id", id)
-
 	if version == nil {
 		return errors.New("version is a nil pointer")
 	}
+	s.scope.Debug("Deleting launch template version", "id", id, "version", *version)
+
 	versions := []string{strconv.FormatInt(*version, 10)}
 
 	input := &ec2.DeleteLaunchTemplateVersionsInput{
@@ -771,7 +793,7 @@ func (s *Service) deleteLaunchTemplateVersion(id string, version *int64) error {
 		return err
 	}
 
-	s.scope.Debug("Deleted launch template", "id", id, "version", *version)
+	s.scope.Debug("Deleted launch template version", "id", id, "version", *version)
 	return nil
 }
 

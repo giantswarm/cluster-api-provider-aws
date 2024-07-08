@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"github.com/aws/aws-sdk-go/service/ec2"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -75,7 +76,7 @@ type EC2Interface interface {
 	GetLaunchTemplateLatestVersion(id string) (string, error)
 	CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte) (string, error)
 	CreateLaunchTemplateVersion(id string, scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte) error
-	PruneLaunchTemplateVersions(id string) error
+	PruneLaunchTemplateVersions(id string) (*ec2.LaunchTemplateVersion, error)
 	DeleteLaunchTemplate(id string) error
 	LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, incoming *expinfrav1.AWSLaunchTemplate, existing *expinfrav1.AWSLaunchTemplate) (bool, error)
 	DeleteBastion() error
@@ -132,4 +133,5 @@ type ObjectStoreInterface interface {
 	Delete(m *scope.MachineScope) error
 	Create(m *scope.MachineScope, data []byte) (objectURL string, err error)
 	CreateForMachinePool(scope scope.LaunchTemplateScope, data []byte) (objectURL string, err error)
+	DeleteForMachinePool(scope scope.LaunchTemplateScope, data []byte) error
 }
