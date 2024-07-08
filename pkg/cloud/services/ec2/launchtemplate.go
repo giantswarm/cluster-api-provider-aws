@@ -270,7 +270,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		// anymore. If this fails, it would still be cleaned by the bucket lifecycle
 		// policy later.
 		if deletedLaunchTemplateVersion != nil && deletedLaunchTemplateVersion.LaunchTemplateData.UserData != nil && len(*deletedLaunchTemplateVersion.LaunchTemplateData.UserData) > 0 && s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && ignitionScope.Ignition() != nil {
-			scope.Info("Deleting S3 object for deleted launch template version", "version", *deletedLaunchTemplateVersion.VersionNumber)
+			scope.Info("Deleting S3 object for deleted launch template version", "version", *deletedLaunchTemplateVersion.VersionNumber, "ANDI-deletedLaunchTemplateVersion.LaunchTemplateData.UserData", *deletedLaunchTemplateVersion.LaunchTemplateData.UserData)
 
 			decodedUserDataOfDeletedLaunchTemplateVersion, err := base64.StdEncoding.DecodeString(*deletedLaunchTemplateVersion.LaunchTemplateData.UserData)
 			if err == nil {

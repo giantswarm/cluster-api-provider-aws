@@ -18,6 +18,7 @@ package s3
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -212,6 +213,8 @@ func (s *Service) Create(m *scope.MachineScope, data []byte) (string, error) {
 }
 
 func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []byte) (string, error) {
+	scope.Info("ANDI CreateForMachinePool", "data-base64", base64.StdEncoding.EncodeToString(data))
+
 	if !s.bucketManagementEnabled() {
 		return "", errors.New("requested object creation but bucket management is not enabled")
 	}
@@ -293,6 +296,8 @@ func (s *Service) Delete(m *scope.MachineScope) error {
 }
 
 func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, data []byte) error {
+	scope.Info("ANDI DeleteForMachinePool", "data-base64", base64.StdEncoding.EncodeToString(data))
+
 	if !s.bucketManagementEnabled() {
 		return errors.New("requested object deletion but bucket management is not enabled")
 	}
