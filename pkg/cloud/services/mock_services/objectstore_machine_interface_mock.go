@@ -109,7 +109,7 @@ func (mr *MockObjectStoreInterfaceMockRecorder) DeleteBucket() *gomock.Call {
 }
 
 // DeleteForMachinePool mocks base method.
-func (m *MockObjectStoreInterface) DeleteForMachinePool(arg0 scope.LaunchTemplateScope, arg1 []byte) error {
+func (m *MockObjectStoreInterface) DeleteForMachinePool(arg0 scope.LaunchTemplateScope, arg1 string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteForMachinePool", arg0, arg1)
 	ret0, _ := ret[0].(error)

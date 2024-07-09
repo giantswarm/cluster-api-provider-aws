@@ -71,11 +71,11 @@ type EC2Interface interface {
 	DetachSecurityGroupsFromNetworkInterface(groups []string, interfaceID string) error
 
 	DiscoverLaunchTemplateAMI(scope scope.LaunchTemplateScope) (*string, error)
-	GetLaunchTemplate(id string) (lt *expinfrav1.AWSLaunchTemplate, userDataHash string, userDataSecretKey *apimachinerytypes.NamespacedName, err error)
+	GetLaunchTemplate(id string) (lt *expinfrav1.AWSLaunchTemplate, userDataHash string, userDataSecretKey *apimachinerytypes.NamespacedName, bootstrapDataHash *string, err error)
 	GetLaunchTemplateID(id string) (string, error)
 	GetLaunchTemplateLatestVersion(id string) (string, error)
-	CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte) (string, error)
-	CreateLaunchTemplateVersion(id string, scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte) error
+	CreateLaunchTemplate(scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte, bootstrapDataHash string) (string, error)
+	CreateLaunchTemplateVersion(id string, scope scope.LaunchTemplateScope, imageID *string, userDataSecretKey apimachinerytypes.NamespacedName, userData []byte, bootstrapDataHash string) error
 	PruneLaunchTemplateVersions(id string) (*ec2.LaunchTemplateVersion, error)
 	DeleteLaunchTemplate(id string) error
 	LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, incoming *expinfrav1.AWSLaunchTemplate, existing *expinfrav1.AWSLaunchTemplate) (bool, error)
@@ -133,5 +133,5 @@ type ObjectStoreInterface interface {
 	Delete(m *scope.MachineScope) error
 	Create(m *scope.MachineScope, data []byte) (objectURL string, err error)
 	CreateForMachinePool(scope scope.LaunchTemplateScope, data []byte) (objectURL string, err error)
-	DeleteForMachinePool(scope scope.LaunchTemplateScope, data []byte) error
+	DeleteForMachinePool(scope scope.LaunchTemplateScope, bootstrapDataHash string) error
 }

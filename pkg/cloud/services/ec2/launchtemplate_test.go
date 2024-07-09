@@ -80,11 +80,15 @@ users:
 
 var testUserDataHash = userdata.ComputeHash([]byte(testUserData))
 
-func defaultEC2AndUserDataSecretKeyTags(name string, clusterName string, userDataSecretKey types.NamespacedName) []*ec2.Tag {
+func defaultEC2AndDataTags(name string, clusterName string, userDataSecretKey types.NamespacedName, bootstrapDataHash string) []*ec2.Tag {
 	tags := defaultEC2Tags(name, clusterName)
 	tags = append(tags, &ec2.Tag{
 		Key:   aws.String(infrav1.LaunchTemplateBootstrapDataSecret),
 		Value: aws.String(userDataSecretKey.String()),
+	})
+	tags = append(tags, &ec2.Tag{
+		Key:   aws.String(infrav1.LaunchTemplateBootstrapDataHash),
+		Value: aws.String(bootstrapDataHash),
 	})
 	sortTags(tags)
 	return tags
@@ -295,7 +299,7 @@ func TestGetLaunchTemplate(t *testing.T) {
 				tc.expect(mockEC2Client.EXPECT())
 			}
 
-			launchTemplate, userData, _, err := s.GetLaunchTemplate(tc.launchTemplateName)
+			launchTemplate, userData, _, _, err := s.GetLaunchTemplate(tc.launchTemplateName)
 			tc.check(g, launchTemplate, userData, err)
 		})
 	}
@@ -303,12 +307,13 @@ func TestGetLaunchTemplate(t *testing.T) {
 
 func TestServiceSDKToLaunchTemplate(t *testing.T) {
 	tests := []struct {
-		name              string
-		input             *ec2.LaunchTemplateVersion
-		wantLT            *expinfrav1.AWSLaunchTemplate
-		wantHash          string
-		wantDataSecretKey *types.NamespacedName
-		wantErr           bool
+		name                  string
+		input                 *ec2.LaunchTemplateVersion
+		wantLT                *expinfrav1.AWSLaunchTemplate
+		wantUserDataHash      string
+		wantDataSecretKey     *types.NamespacedName
+		wantBootstrapDataHash *string
+		wantErr               bool
 	}{
 		{
 			name: "lots of input",
@@ -350,8 +355,9 @@ func TestServiceSDKToLaunchTemplate(t *testing.T) {
 				SSHKeyName:         aws.String("foo-keyname"),
 				VersionNumber:      aws.Int64(1),
 			},
-			wantHash:          testUserDataHash,
-			wantDataSecretKey: nil, // respective tag is not given
+			wantUserDataHash:      testUserDataHash,
+			wantDataSecretKey:     nil, // respective tag is not given
+			wantBootstrapDataHash: nil, // respective tag is not given
 		},
 		{
 			name: "tag of bootstrap secret",
@@ -388,6 +394,10 @@ func TestServiceSDKToLaunchTemplate(t *testing.T) {
 									Key:   aws.String("sigs.k8s.io/cluster-api-provider-aws/bootstrap-data-secret"),
 									Value: aws.String("bootstrap-secret-ns/bootstrap-secret"),
 								},
+								{
+									Key:   aws.String("sigs.k8s.io/cluster-api-provider-aws/bootstrap-data-hash"),
+									Value: aws.String(testUserDataHash),
+								},
 							},
 						},
 					},
@@ -404,26 +414,29 @@ func TestServiceSDKToLaunchTemplate(t *testing.T) {
 				SSHKeyName:         aws.String("foo-keyname"),
 				VersionNumber:      aws.Int64(1),
 			},
-			wantHash:          testUserDataHash,
-			wantDataSecretKey: &types.NamespacedName{Namespace: "bootstrap-secret-ns", Name: "bootstrap-secret"},
+			wantUserDataHash:      testUserDataHash,
+			wantDataSecretKey:     &types.NamespacedName{Namespace: "bootstrap-secret-ns", Name: "bootstrap-secret"},
+			wantBootstrapDataHash: &testUserDataHash,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
 			s := &Service{}
-			gotLT, gotHash, gotDataSecretKey, err := s.SDKToLaunchTemplate(tt.input)
+			gotLT, gotUserDataHash, gotDataSecretKey, gotBootstrapDataHash, err := s.SDKToLaunchTemplate(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("error mismatch: got %v, wantErr %v", err, tt.wantErr)
 			}
 			if !cmp.Equal(gotLT, tt.wantLT) {
 				t.Fatalf("launchTemplate mismatch: got %v, want %v", gotLT, tt.wantLT)
 			}
-			if !cmp.Equal(gotHash, tt.wantHash) {
-				t.Fatalf("userDataHash mismatch: got %v, want %v", gotHash, tt.wantHash)
+			if !cmp.Equal(gotUserDataHash, tt.wantUserDataHash) {
+				t.Fatalf("userDataHash mismatch: got %v, want %v", gotUserDataHash, tt.wantUserDataHash)
 			}
 			if !cmp.Equal(gotDataSecretKey, tt.wantDataSecretKey) {
 				t.Fatalf("userDataSecretKey mismatch: got %v, want %v", gotDataSecretKey, tt.wantDataSecretKey)
 			}
+			g.Expect(gotBootstrapDataHash).To(Equal(tt.wantBootstrapDataHash))
 		})
 	}
 }
@@ -812,6 +825,7 @@ func TestCreateLaunchTemplate(t *testing.T) {
 		Name:      "bootstrap-secret",
 	}
 	userData := []byte{1, 0, 0}
+	bootstrapDataHash := userdata.ComputeHash(userData) // no storage in S3, so EC2 user data == bootstrap data
 	testCases := []struct {
 		name                 string
 		awsResourceReference []infrav1.AWSResourceReference
@@ -845,7 +859,7 @@ func TestCreateLaunchTemplate(t *testing.T) {
 						TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 							{
 								ResourceType: aws.String(ec2.ResourceTypeInstance),
-								Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+								Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 							},
 							{
 								ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -905,7 +919,7 @@ func TestCreateLaunchTemplate(t *testing.T) {
 						TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 							{
 								ResourceType: aws.String(ec2.ResourceTypeInstance),
-								Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+								Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 							},
 							{
 								ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -967,7 +981,7 @@ func TestCreateLaunchTemplate(t *testing.T) {
 						TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 							{
 								ResourceType: aws.String(ec2.ResourceTypeInstance),
-								Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+								Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 							},
 							{
 								ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -1022,7 +1036,7 @@ func TestCreateLaunchTemplate(t *testing.T) {
 				tc.expect(g, mockEC2Client.EXPECT())
 			}
 
-			launchTemplate, err := s.CreateLaunchTemplate(ms, aws.String("imageID"), userDataSecretKey, userData)
+			launchTemplate, err := s.CreateLaunchTemplate(ms, aws.String("imageID"), userDataSecretKey, userData, bootstrapDataHash)
 			tc.check(g, launchTemplate, err)
 		})
 	}
@@ -1050,7 +1064,7 @@ func TestLaunchTemplateDataCreation(t *testing.T) {
 			Namespace: "bootstrap-secret-ns",
 			Name:      "bootstrap-secret",
 		}
-		launchTemplate, err := s.CreateLaunchTemplate(ms, aws.String("imageID"), userDataSecretKey, nil)
+		launchTemplate, err := s.CreateLaunchTemplate(ms, aws.String("imageID"), userDataSecretKey, nil, "")
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(launchTemplate).Should(BeEmpty())
 	})
@@ -1070,6 +1084,7 @@ func TestCreateLaunchTemplateVersion(t *testing.T) {
 		Name:      "bootstrap-secret",
 	}
 	userData := []byte{1, 0, 0}
+	bootstrapDataHash := userdata.ComputeHash(userData) // no storage in S3, so EC2 user data == bootstrap data
 	testCases := []struct {
 		name                 string
 		imageID              *string
@@ -1104,7 +1119,7 @@ func TestCreateLaunchTemplateVersion(t *testing.T) {
 						TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 							{
 								ResourceType: aws.String(ec2.ResourceTypeInstance),
-								Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+								Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 							},
 							{
 								ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -1155,7 +1170,7 @@ func TestCreateLaunchTemplateVersion(t *testing.T) {
 						TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 							{
 								ResourceType: aws.String(ec2.ResourceTypeInstance),
-								Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+								Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 							},
 							{
 								ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -1202,10 +1217,10 @@ func TestCreateLaunchTemplateVersion(t *testing.T) {
 				tc.expect(mockEC2Client.EXPECT())
 			}
 			if tc.wantErr {
-				g.Expect(s.CreateLaunchTemplateVersion("launch-template-id", ms, aws.String("imageID"), userDataSecretKey, userData)).To(HaveOccurred())
+				g.Expect(s.CreateLaunchTemplateVersion("launch-template-id", ms, aws.String("imageID"), userDataSecretKey, userData, bootstrapDataHash)).To(HaveOccurred())
 				return
 			}
-			g.Expect(s.CreateLaunchTemplateVersion("launch-template-id", ms, aws.String("imageID"), userDataSecretKey, userData)).NotTo(HaveOccurred())
+			g.Expect(s.CreateLaunchTemplateVersion("launch-template-id", ms, aws.String("imageID"), userDataSecretKey, userData, bootstrapDataHash)).NotTo(HaveOccurred())
 		})
 	}
 }
@@ -1218,6 +1233,8 @@ func TestBuildLaunchTemplateTagSpecificationRequest(t *testing.T) {
 		Namespace: "bootstrap-secret-ns",
 		Name:      "bootstrap-secret",
 	}
+	userDataHash := userdata.ComputeHash([]byte("shell-script"))
+	bootstrapDataHash := userDataHash // no storage in S3, so EC2 user data == bootstrap data
 	testCases := []struct {
 		name  string
 		check func(g *WithT, m []*ec2.LaunchTemplateTagSpecificationRequest)
@@ -1228,7 +1245,7 @@ func TestBuildLaunchTemplateTagSpecificationRequest(t *testing.T) {
 				expected := []*ec2.LaunchTemplateTagSpecificationRequest{
 					{
 						ResourceType: aws.String(ec2.ResourceTypeInstance),
-						Tags:         defaultEC2AndUserDataSecretKeyTags("aws-mp-name", "cluster-name", userDataSecretKey),
+						Tags:         defaultEC2AndDataTags("aws-mp-name", "cluster-name", userDataSecretKey, bootstrapDataHash),
 					},
 					{
 						ResourceType: aws.String(ec2.ResourceTypeVolume),
@@ -1258,7 +1275,7 @@ func TestBuildLaunchTemplateTagSpecificationRequest(t *testing.T) {
 			g.Expect(err).NotTo(HaveOccurred())
 
 			s := NewService(cs)
-			tc.check(g, s.buildLaunchTemplateTagSpecificationRequest(ms, userDataSecretKey))
+			tc.check(g, s.buildLaunchTemplateTagSpecificationRequest(ms, userDataSecretKey, userDataHash))
 		})
 	}
 }

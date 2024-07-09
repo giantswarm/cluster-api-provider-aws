@@ -228,7 +228,7 @@ func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []b
 	}
 
 	bucket := s.bucketName()
-	key := s.bootstrapDataKeyForMachinePool(scope, data)
+	key := s.bootstrapDataKeyForMachinePool(scope, userdata.ComputeHash(data))
 
 	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key)
 
@@ -295,8 +295,8 @@ func (s *Service) Delete(m *scope.MachineScope) error {
 	return nil
 }
 
-func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, data []byte) error {
-	scope.Info("ANDI DeleteForMachinePool", "data-base64", base64.StdEncoding.EncodeToString(data))
+func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, bootstrapDataHash string) error {
+	scope.Info("ANDI DeleteForMachinePool", "bootstrapDataHash", bootstrapDataHash)
 
 	if !s.bucketManagementEnabled() {
 		return errors.New("requested object deletion but bucket management is not enabled")
@@ -306,12 +306,8 @@ func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, data []b
 		return errors.New("launch template name can't be empty")
 	}
 
-	if len(data) == 0 {
-		return errors.New("got empty data")
-	}
-
 	bucket := s.bucketName()
-	key := s.bootstrapDataKeyForMachinePool(scope, data)
+	key := s.bootstrapDataKeyForMachinePool(scope, bootstrapDataHash)
 
 	s.scope.Info("Deleting object for machine pool", "bucket_name", bucket, "key", key)
 
@@ -544,6 +540,6 @@ func (s *Service) bootstrapDataKey(m *scope.MachineScope) string {
 	return path.Join(m.Role(), m.Name())
 }
 
-func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, data []byte) string {
-	return path.Join("machine-pool", scope.LaunchTemplateName(), userdata.ComputeHash(data))
+func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, dataHash string) string {
+	return path.Join("machine-pool", scope.LaunchTemplateName(), dataHash)
 }
