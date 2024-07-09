@@ -271,7 +271,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		// policy later.
 		if deletedLaunchTemplateVersion != nil {
 			_, _, _, deletedLaunchTemplateVersionBootstrapDataHash, err := s.SDKToLaunchTemplate(deletedLaunchTemplateVersion)
-			if err == nil {
+			if err != nil {
 				return nil, err
 			}
 			if deletedLaunchTemplateVersionBootstrapDataHash != nil && deletedLaunchTemplateVersion.LaunchTemplateData.UserData != nil && len(*deletedLaunchTemplateVersion.LaunchTemplateData.UserData) > 0 && s3Scope.Bucket() != nil && bootstrapDataFormat == "ignition" && ignitionScope.Ignition() != nil {
