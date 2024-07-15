@@ -40,6 +40,7 @@ import (
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
@@ -273,7 +274,7 @@ func (s *Service) ReconcileLaunchTemplate(
 		// S3 objects should be deleted as soon as possible if they're not used
 		// anymore. If this fails, it would still be cleaned by the bucket lifecycle
 		// policy later.
-		if deletedLaunchTemplateVersion != nil {
+		if feature.Gates.Enabled(feature.MachinePool) && deletedLaunchTemplateVersion != nil {
 			_, _, _, deletedLaunchTemplateVersionBootstrapDataHash, err := s.SDKToLaunchTemplate(deletedLaunchTemplateVersion)
 			if err != nil {
 				return nil, err
