@@ -108,6 +108,20 @@ func (mr *MockObjectStoreInterfaceMockRecorder) DeleteBucket() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBucket", reflect.TypeOf((*MockObjectStoreInterface)(nil).DeleteBucket))
 }
 
+// DeleteForMachinePool mocks base method.
+func (m *MockObjectStoreInterface) DeleteForMachinePool(arg0 scope.LaunchTemplateScope, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteForMachinePool", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteForMachinePool indicates an expected call of DeleteForMachinePool.
+func (mr *MockObjectStoreInterfaceMockRecorder) DeleteForMachinePool(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteForMachinePool", reflect.TypeOf((*MockObjectStoreInterface)(nil).DeleteForMachinePool), arg0, arg1)
+}
+
 // ReconcileBucket mocks base method.
 func (m *MockObjectStoreInterface) ReconcileBucket() error {
 	m.ctrl.T.Helper()
