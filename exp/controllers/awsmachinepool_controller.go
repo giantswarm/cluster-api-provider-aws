@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/s3"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/logger"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/controllers/remote"
 	expclusterv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -65,6 +66,8 @@ type AWSMachinePoolReconciler struct {
 	reconcileServiceFactory      func(scope.EC2Scope) services.MachinePoolReconcileInterface
 	objectStoreServiceFactory    func(scope.S3Scope) services.ObjectStoreInterface
 	TagUnmanagedNetworkResources bool
+	Tracker                      *remote.ClusterCacheTracker
+	controller                   controller.Controller
 }
 
 func (r *AWSMachinePoolReconciler) getASGService(scope cloud.ClusterScoper) services.ASGInterface {
@@ -143,6 +146,11 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	log = log.WithValues("cluster", klog.KObj(cluster))
+
+	// Create a watch on the nodes in the Cluster.
+	if err := r.watchClusterNodes(ctx, cluster); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	infraCluster, s3Scope, err := r.getInfraCluster(ctx, log, cluster, awsMachinePool)
 	if err != nil {
@@ -522,6 +530,63 @@ func (r *AWSMachinePoolReconciler) createPool(machinePoolScope *scope.MachinePoo
 	machinePoolScope.Info("Creating Autoscaling Group")
 	if _, err := asgsvc.CreateASG(machinePoolScope); err != nil {
 		return errors.Wrapf(err, "failed to create AWSMachinePool")
+	}
+
+	return nil
+}
+
+func (r *AWSMachinePoolReconciler) watchClusterNodes(ctx context.Context, cluster *clusterv1.Cluster) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	if !conditions.IsTrue(cluster, clusterv1.ControlPlaneInitializedCondition) {
+		log.V(5).Info("Skipping node watching setup because control plane is not initialized")
+		return nil
+	}
+
+	// If there is no tracker, don't watch remote nodes
+	if r.Tracker == nil {
+		return nil
+	}
+
+	return r.Tracker.Watch(ctx, remote.WatchInput{
+		Name:         "awsmachinepool-watchNodes",
+		Cluster:      util.ObjectKey(cluster),
+		Watcher:      r.controller,
+		Kind:         &corev1.Node{},
+		EventHandler: handler.EnqueueRequestsFromMapFunc(r.nodeToMachinePool),
+	})
+}
+
+func (r *AWSMachinePoolReconciler) nodeToMachinePool(ctx context.Context, o client.Object) []reconcile.Request {
+	log := ctrl.LoggerFrom(ctx)
+
+	node, ok := o.(*corev1.Node)
+	if !ok {
+		panic(fmt.Sprintf("Expected a Node but got a %T", o))
+	}
+
+	//if node has cluster.x-k8s.io/owner-kind = MachinePool, then return the MachinePool
+	if ownerKind, ok := node.GetAnnotations()[clusterv1.OwnerKindAnnotation]; ok {
+		if ownerKind == "MachinePool" {
+			machinePoolName, ok := node.GetAnnotations()[clusterv1.OwnerNameAnnotation]
+			if !ok {
+				log.V(5).Info("Node %s has MachinePool owner kind but no owner name annotation", node.Name)
+				return nil
+			}
+			namespace, ok := node.GetAnnotations()[clusterv1.ClusterNamespaceAnnotation]
+			if !ok {
+				log.V(5).Info("Node %s has MachinePool owner kind but no cluster namespace annotation", node.Name)
+				return nil
+			}
+			return []reconcile.Request{
+				{
+					NamespacedName: client.ObjectKey{
+						Namespace: namespace,
+						Name:      machinePoolName,
+					},
+				},
+			}
+		}
 	}
 
 	return nil
