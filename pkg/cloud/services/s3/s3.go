@@ -232,7 +232,7 @@ func (s *Service) CreateForMachinePool(scope scope.LaunchTemplateScope, data []b
 	}
 
 	bucket := s.bucketName()
-	key := s.bootstrapDataKeyForMachinePool(scope, data)
+	key := s.bootstrapDataKeyForMachinePool(scope, userdata.ComputeHash(data))
 
 	s.scope.Info("Creating object for machine pool", "bucket_name", bucket, "key", key)
 
@@ -322,6 +322,42 @@ func (s *Service) Delete(m *scope.MachineScope) error {
 	})
 	if err != nil {
 		return errors.Wrap(err, "deleting S3 object")
+	}
+
+	return nil
+}
+
+func (s *Service) DeleteForMachinePool(scope scope.LaunchTemplateScope, bootstrapDataHash string) error {
+	if !s.bucketManagementEnabled() {
+		return errors.New("requested object deletion but bucket management is not enabled")
+	}
+
+	if scope.LaunchTemplateName() == "" {
+		return errors.New("launch template name can't be empty")
+	}
+
+	bucket := s.bucketName()
+	key := s.bootstrapDataKeyForMachinePool(scope, bootstrapDataHash)
+
+	s.scope.Info("Deleting object for machine pool", "bucket_name", bucket, "key", key)
+
+	_, err := s.S3Client.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err == nil {
+		return nil
+	}
+
+	aerr, ok := err.(awserr.Error)
+	if !ok {
+		return errors.Wrap(err, "deleting S3 object for machine pool")
+	}
+
+	switch aerr.Code() {
+	case s3.ErrCodeNoSuchBucket:
+	default:
+		return errors.Wrap(aerr, "deleting S3 object for machine pool")
 	}
 
 	return nil
@@ -539,6 +575,6 @@ func (s *Service) bootstrapDataKey(m *scope.MachineScope) string {
 	return path.Join(m.Role(), m.Name())
 }
 
-func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, data []byte) string {
-	return path.Join("machine-pool", scope.LaunchTemplateName(), userdata.ComputeHash(data))
+func (s *Service) bootstrapDataKeyForMachinePool(scope scope.LaunchTemplateScope, dataHash string) string {
+	return path.Join("machine-pool", scope.LaunchTemplateName(), dataHash)
 }
