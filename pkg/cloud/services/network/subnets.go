@@ -132,6 +132,9 @@ func (s *Service) reconcileSubnets() error {
 
 	for i := range subnets {
 		sub := &subnets[i]
+		if strings.HasPrefix(s.scope.Name(), "andreas") {
+			s.scope.Info(fmt.Sprintf("ANDI finding existing subnet: want (%+v), existing=existing", *sub, existing))
+		}
 		existingSubnet := existing.FindEqual(sub)
 		if existingSubnet != nil {
 			subnetTags := sub.Tags
