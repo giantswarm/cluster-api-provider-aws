@@ -53,6 +53,9 @@ func (s *Service) reconcileSubnets() error {
 	defer func() {
 		s.scope.SetSubnets(subnets)
 	}()
+	if strings.HasPrefix(s.scope.Name(), "andreas") {
+		s.scope.Info(fmt.Sprintf("ANDI before s.scope.Subnets()=%+v", subnets))
+	}
 
 	var (
 		err      error
@@ -104,6 +107,9 @@ func (s *Service) reconcileSubnets() error {
 
 	if s.scope.SecondaryCidrBlock() != nil {
 		subnetCIDRs, err := cidr.SplitIntoSubnetsIPv4(*s.scope.SecondaryCidrBlock(), *s.scope.VPC().AvailabilityZoneUsageLimit)
+		if strings.HasPrefix(s.scope.Name(), "andreas") {
+			s.scope.Info(fmt.Sprintf("ANDI has SecondaryCidrBlock=%q subnetCIDRs=%+v", *s.scope.SecondaryCidrBlock(), subnetCIDRs))
+		}
 		if err != nil {
 			return err
 		}
@@ -133,7 +139,7 @@ func (s *Service) reconcileSubnets() error {
 	for i := range subnets {
 		sub := &subnets[i]
 		if strings.HasPrefix(s.scope.Name(), "andreas") {
-			s.scope.Info(fmt.Sprintf("ANDI finding existing subnet: want (%+v), existing=existing", *sub, existing))
+			s.scope.Info(fmt.Sprintf("ANDI finding existing subnet: want (%+v), existing=(%+v)", *sub, existing))
 		}
 		existingSubnet := existing.FindEqual(sub)
 		if existingSubnet != nil {
