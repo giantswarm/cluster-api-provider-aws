@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_ORG_NAME: giantswarm
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
       - name: Set env
         run: |
