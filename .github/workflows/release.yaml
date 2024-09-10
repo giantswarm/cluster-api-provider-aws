@@ -45,8 +45,6 @@ jobs:
             ./hack/tools/go.sum
 
       - name: Generate release artifacts
-        env:
-          GITHUB_TOKEN: "unused" # since we create the release without using CAPA's Makefile target
         run: |
           # Dealing with changelogs isn't that easy since Giant Swarm releases can jump from `v2.2.0` to `v2.3.1`
           # as we skip intermediate releases. Therefore, finding the required value for `PREVIOUS_VERSION` would be
@@ -74,13 +72,3 @@ jobs:
           (cd fake && go mod init fake)
           printf 'package main\nfunc main(){}' > fake/main.go
           (set -x; make PREVIOUS_VERSION="${RELEASE_TAG}" RELEASE_TAG="${RELEASE_TAG}" release)
-
-      # Instead of `make VERSION="${RELEASE_TAG}" create-gh-release upload-gh-artifacts`, which requires GitHub CLI
-      # authentication, use an action which does the same.
-      - name: Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # tag=v1
-        with:
-          draft: true
-          files: out/*
-          body: "This fork does not provide release changelogs."
-          # `name` not needed since this takes the tag by default (which we also use above as ${RELEASE_TAG})
