@@ -47,7 +47,7 @@ jobs:
         env:
           GITHUB_TOKEN: "unused" # since we create the release without using CAPA's Makefile target
         run: |
-          make RELEASE_TAG="${RELEASE_TAG}" release-manifests
+          make REGISTRY="registry.k8s.io/cluster-api-aws" RELEASE_TAG="${RELEASE_TAG}" release-manifests
 
       # Instead of `make VERSION="${RELEASE_TAG}" create-gh-release upload-gh-artifacts`, which requires GitHub CLI
       # authentication, use an action which does the same.
