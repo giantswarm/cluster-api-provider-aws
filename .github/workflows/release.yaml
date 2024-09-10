@@ -51,17 +51,22 @@ jobs:
           # as we skip intermediate releases. Therefore, finding the required value for `PREVIOUS_VERSION` would be
           # a manual task. Better not deal with the changelog right now since it's unlikely that someone will look
           # at those in our fork (as compared to upstream's releases).
-          printf '#!/bin/sh\necho "Changelogs are not filled in this fork"\n' > hack/releasechangelog.sh # old path of this tool
           mkdir -p hack/tools/bin
           printf '#!/bin/sh\necho "Changelogs are not filled in this fork" > out/CHANGELOG.md\n' > hack/tools/bin/release-notes
           chmod +x hack/tools/bin/release-notes
 
           # We don't need the binaries and other stuff in the release, either. Really only the YAML manifests.
-          sed -i -E -e '/\$\(MAKE\) (release-binaries|release-templates|release-policies)/d' Makefile
+          sed -i -E -e '/\$\(MAKE\) release-policies/d' Makefile
           sed -i -E -e '/cp metadata.yaml/d' Makefile
+          sed -i -E -e 's/@if.*RELEASE_BRANCH is not set.*/@echo/' Makefile
+          sed -i -E -e 's/\$\(GORELEASER\) release --config/\$(GORELEASER) release --skip validate --config/' Makefile
 
           # To allow the above changes since normally the Makefile wouldn't allow a dirty Git repo
           sed -i -e '/Your local git repository contains uncommitted changes/d' Makefile
+
+          # We only want the manifest, not binaries
+          make hack/tools/bin/yq
+          hack/tools/bin/yq e -i 'del(.builds) | del(.archives)' .goreleaser.yaml
 
           (set -x; make PREVIOUS_VERSION="${RELEASE_TAG}" RELEASE_TAG="${RELEASE_TAG}" release)
 
