@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_ORG_NAME: giantswarm
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
       - name: Set env
         run: |
@@ -45,30 +44,17 @@ jobs:
             ./hack/tools/go.sum
 
       - name: Generate release artifacts
+        env:
+          GITHUB_TOKEN: "unused" # since we create the release without using CAPA's Makefile target
         run: |
-          # Dealing with changelogs isn't that easy since Giant Swarm releases can jump from `v2.2.0` to `v2.3.1`
-          # as we skip intermediate releases. Therefore, finding the required value for `PREVIOUS_VERSION` would be
-          # a manual task. Better not deal with the changelog right now since it's unlikely that someone will look
-          # at those in our fork (as compared to upstream's releases).
-          mkdir -p hack/tools/bin
-          printf '#!/bin/sh\necho "Changelogs are not filled in this fork" > out/CHANGELOG.md\n' > hack/tools/bin/release-notes
-          chmod +x hack/tools/bin/release-notes
+          make RELEASE_TAG="${RELEASE_TAG}" release-manifests
 
-          # We don't need the binaries and other stuff in the release, either. Really only the YAML manifests.
-          sed -i -E -e '/\$\(MAKE\) release-policies/d' Makefile
-          sed -i -E -e '/cp metadata.yaml/d' Makefile
-          sed -i -E -e 's/@if.*RELEASE_BRANCH is not set.*/@echo/' Makefile
-          sed -i -E -e 's/\$\(GORELEASER\) release --config/\$(GORELEASER) release --skip validate --config/' Makefile
-
-          # To allow the above changes since normally the Makefile wouldn't allow a dirty Git repo
-          sed -i -e '/Your local git repository contains uncommitted changes/d' Makefile
-
-          # We only want the manifest, not binaries. But goreleaser would build something if we set `.builds=[]`, so
-          # fill in a fake program to make the build fast.
-          make hack/tools/bin/yq
-          hack/tools/bin/yq e -i '.builds = [{"id":"fake","dir":"fake","binary":"bin/fake","goos":["linux"],"goarch":["amd64"]}] | .archives = []' .goreleaser.yaml
-
-          mkdir fake
-          (cd fake && go mod init fake)
-          printf 'package main\nfunc main(){}' > fake/main.go
-          (set -x; make PREVIOUS_VERSION="${RELEASE_TAG}" RELEASE_TAG="${RELEASE_TAG}" release)
+      # Instead of `make VERSION="${RELEASE_TAG}" create-gh-release upload-gh-artifacts`, which requires GitHub CLI
+      # authentication, use an action which does the same.
+      - name: Release
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # tag=v1
+        with:
+          draft: true
+          files: out/*
+          body: "This fork does not provide release changelogs."
+          # `name` not needed since this takes the tag by default (which we also use above as ${RELEASE_TAG})
