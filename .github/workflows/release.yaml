@@ -66,7 +66,7 @@ jobs:
 
           # We only want the manifest, not binaries
           make hack/tools/bin/yq
-          hack/tools/bin/yq e -i 'del(.builds) | del(.archives)' .goreleaser.yaml
+          hack/tools/bin/yq e -i '.builds = [] | .archives = []' .goreleaser.yaml
 
           (set -x; make PREVIOUS_VERSION="${RELEASE_TAG}" RELEASE_TAG="${RELEASE_TAG}" release)
 
