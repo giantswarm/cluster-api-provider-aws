@@ -109,6 +109,7 @@ func (r *AWSMachinePool) validateAdditionalSecurityGroups() field.ErrorList {
 	}
 	return allErrs
 }
+
 func (r *AWSMachinePool) validateSpotInstances() field.ErrorList {
 	var allErrs field.ErrorList
 	if r.Spec.AWSLaunchTemplate.SpotMarketOptions != nil && r.Spec.MixedInstancesPolicy != nil {
@@ -133,6 +134,26 @@ func (r *AWSMachinePool) validateIgnition() field.ErrorList {
 	return allErrs
 }
 
+func (r *AWSMachinePool) validateRefreshPreferences() field.ErrorList {
+	var allErrs field.ErrorList
+
+	if r.Spec.RefreshPreferences == nil {
+		return allErrs
+	}
+
+	if r.Spec.RefreshPreferences.MaxHealthyPercentage != nil && r.Spec.RefreshPreferences.MinHealthyPercentage == nil {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.refreshPreferences.maxHealthyPercentage"), "If you specify spec.refreshPreferences.maxHealthyPercentage, you must also specify spec.refreshPreferences.minHealthyPercentage"))
+	}
+
+	if r.Spec.RefreshPreferences.MaxHealthyPercentage != nil && r.Spec.RefreshPreferences.MinHealthyPercentage != nil {
+		if *r.Spec.RefreshPreferences.MaxHealthyPercentage-*r.Spec.RefreshPreferences.MinHealthyPercentage > 100 {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.refreshPreferences.maxHealthyPercentage"), "the difference between spec.refreshPreferences.maxHealthyPercentage and spec.refreshPreferences.minHealthyPercentage cannot be greater than 100"))
+		}
+	}
+
+	return allErrs
+}
+
 // ValidateCreate will do any extra validation when creating a AWSMachinePool.
 func (r *AWSMachinePool) ValidateCreate() (admission.Warnings, error) {
 	log.Info("AWSMachinePool validate create", "machine-pool", klog.KObj(r))
@@ -146,6 +167,7 @@ func (r *AWSMachinePool) ValidateCreate() (admission.Warnings, error) {
 	allErrs = append(allErrs, r.validateAdditionalSecurityGroups()...)
 	allErrs = append(allErrs, r.validateSpotInstances()...)
 	allErrs = append(allErrs, r.validateIgnition()...)
+	allErrs = append(allErrs, r.validateRefreshPreferences()...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
@@ -167,6 +189,7 @@ func (r *AWSMachinePool) ValidateUpdate(_ runtime.Object) (admission.Warnings, e
 	allErrs = append(allErrs, r.validateSubnets()...)
 	allErrs = append(allErrs, r.validateAdditionalSecurityGroups()...)
 	allErrs = append(allErrs, r.validateSpotInstances()...)
+	allErrs = append(allErrs, r.validateRefreshPreferences()...)
 
 	if len(allErrs) == 0 {
 		return nil, nil
