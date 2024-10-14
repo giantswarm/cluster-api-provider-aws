@@ -723,11 +723,10 @@ spec:
                         - resource-name
                         type: string
                       secondaryCidrBlocks:
-                        description: SecondaryCidrBlocks are additional CIDR blocks
-                          to be associated when the provider creates a managed VPC.
-                          Defaults to none. Mutually exclusive with IPAMPool. This
-                          makes sense to use if, for example, you want to use a separate
-                          IP range for pods (e.g. Cilium ENI mode).
+                        description: |-
+                          SecondaryCidrBlocks are additional CIDR blocks to be associated when the provider creates a managed VPC.
+                          Defaults to none. Mutually exclusive with IPAMPool. This makes sense to use if, for example, you want to use
+                          a separate IP range for pods (e.g. Cilium ENI mode).
                         items:
                           description: VpcCidrBlock defines the CIDR block and settings
                             to associate with the managed VPC. Currently, only IPv4
@@ -2693,11 +2692,10 @@ spec:
                         - resource-name
                         type: string
                       secondaryCidrBlocks:
-                        description: SecondaryCidrBlocks are additional CIDR blocks
-                          to be associated when the provider creates a managed VPC.
-                          Defaults to none. Mutually exclusive with IPAMPool. This
-                          makes sense to use if, for example, you want to use a separate
-                          IP range for pods (e.g. Cilium ENI mode).
+                        description: |-
+                          SecondaryCidrBlocks are additional CIDR blocks to be associated when the provider creates a managed VPC.
+                          Defaults to none. Mutually exclusive with IPAMPool. This makes sense to use if, for example, you want to use
+                          a separate IP range for pods (e.g. Cilium ENI mode).
                         items:
                           description: VpcCidrBlock defines the CIDR block and settings
                             to associate with the managed VPC. Currently, only IPv4
