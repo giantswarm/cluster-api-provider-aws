@@ -279,7 +279,7 @@ func (in *AWSMachinePoolSpec) DeepCopyInto(out *AWSMachinePoolSpec) {
 	if in.Ignition != nil {
 		in, out := &in.Ignition, &out.Ignition
 		*out = new(apiv1beta2.Ignition)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -1063,6 +1063,11 @@ func (in *RefreshPreferences) DeepCopyInto(out *RefreshPreferences) {
 	}
 	if in.MinHealthyPercentage != nil {
 		in, out := &in.MinHealthyPercentage, &out.MinHealthyPercentage
+		*out = new(int64)
+		**out = **in
+	}
+	if in.MaxHealthyPercentage != nil {
+		in, out := &in.MaxHealthyPercentage, &out.MaxHealthyPercentage
 		*out = new(int64)
 		**out = **in
 	}
