@@ -59,14 +59,6 @@ func (s *Service) reconcileSubnets() error {
 		existing infrav1.Subnets
 	)
 
-	// Describing the VPC Subnets tags the resources.
-	if s.scope.TagUnmanagedNetworkResources() {
-		// Describe subnets in the vpc.
-		if existing, err = s.describeVpcSubnets(); err != nil {
-			return err
-		}
-	}
-
 	unmanagedVPC := s.scope.VPC().IsUnmanaged(s.scope.Name())
 
 	if len(subnets) == 0 {
@@ -94,12 +86,9 @@ func (s *Service) reconcileSubnets() error {
 		}
 	}
 
-	// Describing the VPC Subnets tags the resources.
-	if !s.scope.TagUnmanagedNetworkResources() {
-		// Describe subnets in the vpc.
-		if existing, err = s.describeVpcSubnets(); err != nil {
-			return err
-		}
+	// Describe subnets in the vpc.
+	if existing, err = s.describeVpcSubnets(); err != nil {
+		return err
 	}
 
 	if s.scope.SecondaryCidrBlock() != nil {
@@ -164,6 +153,7 @@ func (s *Service) reconcileSubnets() error {
 
 			// Update subnet spec with the existing subnet details
 			existingSubnet.DeepCopyInto(sub)
+			sub.Tags = subnetTags
 		} else if unmanagedVPC {
 			// If there is no existing subnet and we have an umanaged vpc report an error
 			record.Warnf(s.scope.InfraCluster(), "FailedMatchSubnet", "Using unmanaged VPC and failed to find existing subnet for specified subnet id %d, cidr %q", sub.GetResourceID(), sub.CidrBlock)
