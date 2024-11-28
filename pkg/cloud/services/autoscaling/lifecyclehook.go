@@ -18,6 +18,7 @@ package asg
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -81,6 +82,7 @@ func getPutLifecycleHookInput(asgName string, hook *expinfrav1.AWSLifecycleHook)
 func (s *Service) CreateLifecycleHook(ctx context.Context, asgName string, hook *expinfrav1.AWSLifecycleHook) error {
 	input := getPutLifecycleHookInput(asgName, hook)
 
+	fmt.Printf("ANDI create %+v\n", input)
 	if _, err := s.ASGClient.PutLifecycleHookWithContext(ctx, input); err != nil {
 		return errors.Wrapf(err, "failed to create lifecycle hook %q for AutoScalingGroup: %q", hook.Name, asgName)
 	}
@@ -92,6 +94,7 @@ func (s *Service) CreateLifecycleHook(ctx context.Context, asgName string, hook 
 func (s *Service) UpdateLifecycleHook(ctx context.Context, asgName string, hook *expinfrav1.AWSLifecycleHook) error {
 	input := getPutLifecycleHookInput(asgName, hook)
 
+	fmt.Printf("ANDI update %+v\n", input)
 	if _, err := s.ASGClient.PutLifecycleHookWithContext(ctx, input); err != nil {
 		return errors.Wrapf(err, "failed to update lifecycle hook %q for AutoScalingGroup: %q", hook.Name, asgName)
 	}
