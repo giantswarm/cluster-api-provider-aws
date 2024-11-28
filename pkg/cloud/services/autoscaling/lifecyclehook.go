@@ -232,7 +232,7 @@ func reconcileLifecycleHook(ctx context.Context, asgService services.ASGInterfac
 	}
 
 	if lifecycleHookNeedsUpdate(existingHook, wantedHook) {
-		log.Info("Updating lifecycle hook")
+		log.Info("Updating lifecycle hook", "existingHook", existingHook, "wantedHook", wantedHook)
 		if err := asgService.UpdateLifecycleHook(ctx, asgName, wantedHook); err != nil {
 			conditions.MarkFalse(storeConditionsOnObject, expinfrav1.LifecycleHookReadyCondition, expinfrav1.LifecycleHookUpdateFailedReason, clusterv1.ConditionSeverityError, err.Error())
 			return err
