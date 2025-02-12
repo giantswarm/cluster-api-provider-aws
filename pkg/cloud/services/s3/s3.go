@@ -568,6 +568,17 @@ func (s *Service) bucketPolicy(bucketName string) (string, error) {
 					},
 					Action:   []string{"s3:GetObject"},
 					Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/machine-pool/*", partition, bucketName)},
+				},
+				// At GiantSwarm we are creating karpenter node pools to manage the worker nodes.
+				// These nodes also need access to the userdata stored in the bucket.
+				iam.StatementEntry{
+					Sid:    iamInstanceProfile,
+					Effect: iam.EffectAllow,
+					Principal: map[iam.PrincipalType]iam.PrincipalID{
+						iam.PrincipalAWS: []string{fmt.Sprintf("arn:%s:iam::%s:role/%s", partition, *accountID.Account, iamInstanceProfile)},
+					},
+					Action:   []string{"s3:GetObject"},
+					Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/karpenter-machine-pool/*", partition, bucketName)},
 				})
 		}
 	}
