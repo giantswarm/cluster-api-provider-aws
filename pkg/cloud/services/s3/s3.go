@@ -579,7 +579,7 @@ func (s *Service) bucketPolicy(bucketName string) (string, error) {
 						iam.PrincipalAWS: []string{fmt.Sprintf("arn:%s:iam::%s:role/%s", partition, *accountID.Account, iamInstanceProfile)},
 					},
 					Action:   []string{"s3:ListBucket"},
-					Resource: []string{fmt.Sprintf("arn:%s:s3:::%s/karpenter-machine-pool/*", partition, bucketName)},
+					Resource: []string{fmt.Sprintf("arn:%s:s3:::%s", partition, bucketName)},
 				})
 		}
 	}
