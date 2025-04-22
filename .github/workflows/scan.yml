@@ -15,7 +15,7 @@ jobs:
       matrix:
         branch: [ main, release-2.2, release-2.1, release-2.0 ]
     name: Trivy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4.1.1

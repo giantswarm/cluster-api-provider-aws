@@ -12,7 +12,7 @@ jobs:
   approve:
     name: Approve ok-to-test
     if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: write
     steps:

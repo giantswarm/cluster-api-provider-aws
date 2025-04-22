@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     name: Create draft release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       GH_ORG_NAME: giantswarm
     steps:

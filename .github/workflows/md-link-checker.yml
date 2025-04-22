@@ -6,7 +6,7 @@ permissions: {}
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4.1.1
       - uses: artyom/mdlinks@v0
