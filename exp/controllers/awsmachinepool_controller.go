@@ -23,12 +23,14 @@ import (
 	"time"
 
 	autoscalingtypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/blang/semver/v4"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -56,6 +58,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/logger"
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	v1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
@@ -314,6 +317,16 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 			// But we want to update the LaunchTemplate because an error in the LaunchTemplate may be blocking the ASG creation.
 			return true, nil, nil
 		}
+
+		canProceed, err := r.isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx, machinePoolScope)
+		if !canProceed {
+			machinePoolScope.Info("blocking instance refresh due to control plane k8s version skew")
+			return false, nil, nil
+		}
+		if err != nil {
+			return true, nil, err
+		}
+
 		return asgsvc.CanStartASGInstanceRefresh(machinePoolScope)
 	}
 	cancelInstanceRefresh := func() error {
@@ -781,4 +794,33 @@ func (r *AWSMachinePoolReconciler) getInfraCluster(ctx context.Context, log *log
 	}
 
 	return clusterScope, clusterScope, nil
+}
+
+// isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew checks if the control plane is being upgraded, in which case we shouldn't update the launch template.
+func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx context.Context, machinePoolScope *scope.MachinePoolScope) (bool, error) {
+	if !machinePoolScope.Cluster.Spec.ControlPlaneRef.IsDefined() {
+		return true, nil
+	}
+
+	controlPlane, err := external.GetObjectFromContractVersionedRef(ctx, r.Client, machinePoolScope.Cluster.Spec.ControlPlaneRef, machinePoolScope.Namespace())
+	if err != nil {
+		return true, errors.Wrapf(err, "failed to get ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+	}
+
+	cpVersion, found, err := unstructured.NestedString(controlPlane.Object, "status", "version")
+	if !found || err != nil {
+		return true, errors.Wrapf(err, "failed to get version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+	}
+
+	controlPlaneCurrentK8sVersion, err := semver.ParseTolerant(cpVersion)
+	if err != nil {
+		return true, errors.Wrapf(err, "failed to parse version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+	}
+
+	machinePoolDesiredK8sVersion, err := semver.ParseTolerant(machinePoolScope.MachinePool.Spec.Template.Spec.Version)
+	if err != nil {
+		return true, errors.Wrap(err, "failed to parse version of MachinePool")
+	}
+
+	return controlPlaneCurrentK8sVersion.GE(machinePoolDesiredK8sVersion), nil
 }
