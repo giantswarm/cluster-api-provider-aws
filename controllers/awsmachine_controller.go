@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/blang/semver"
 	ignTypes "github.com/coreos/ignition/config/v2_3/types"
 	ignV3Types "github.com/coreos/ignition/v2/config/v3_4/types"
@@ -49,6 +50,7 @@ import (
 	ekscontrolplanev1 "sigs.k8s.io/cluster-api-provider-aws/v2/controlplane/eks/api/v1beta2"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/awserrors"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/ec2"
@@ -1062,6 +1064,14 @@ func (r *AWSMachineReconciler) registerInstanceToV2LB(machineScope *scope.Machin
 func (r *AWSMachineReconciler) deregisterInstanceFromClassicLB(machineScope *scope.MachineScope, elbsvc services.ELBInterface, instance *infrav1.Instance) error {
 	registered, err := elbsvc.IsInstanceRegisteredWithAPIServerELB(instance)
 	if err != nil {
+		var aerr awserr.Error
+		if errors.As(err, &aerr) && aerr.Code() == awserrors.LoadBalancerNotFound {
+			// This may happen if the load balancer got manually deleted, or the cluster got deleted in
+			// the wrong order outside of CAPI's regular deletion mechanism
+			machineScope.Logger.Info("Skipping instance deregistration because load balancer does not exist", "instance", instance.ID)
+			return nil
+		}
+
 		r.Recorder.Eventf(machineScope.AWSMachine, corev1.EventTypeWarning, "FailedDetachControlPlaneELB",
 			"Failed to deregister control plane instance %q from load balancer: failed to determine registration status: %v", instance.ID, err)
 		return errors.Wrapf(err, "could not deregister control plane instance %q from load balancer - error determining registration status", instance.ID)
@@ -1086,6 +1096,14 @@ func (r *AWSMachineReconciler) deregisterInstanceFromClassicLB(machineScope *sco
 func (r *AWSMachineReconciler) deregisterInstanceFromV2LB(machineScope *scope.MachineScope, elbsvc services.ELBInterface, i *infrav1.Instance, lb *infrav1.AWSLoadBalancerSpec) error {
 	targetGroupARNs, registered, err := elbsvc.IsInstanceRegisteredWithAPIServerLB(i, lb)
 	if err != nil {
+		var aerr awserr.Error
+		if errors.As(err, &aerr) && aerr.Code() == awserrors.LoadBalancerNotFound {
+			// This may happen if the load balancer got manually deleted, or the cluster got deleted in
+			// the wrong order outside of CAPI's regular deletion mechanism
+			machineScope.Logger.Info("Skipping instance deregistration because load balancer does not exist", "instance", i.ID)
+			return nil
+		}
+
 		r.Recorder.Eventf(machineScope.AWSMachine, corev1.EventTypeWarning, "FailedDetachControlPlaneELB",
 			"Failed to deregister control plane instance %q from load balancer: failed to determine registration status: %v", i.ID, err)
 		return errors.Wrapf(err, "could not deregister control plane instance %q from load balancer - error determining registration status", i.ID)
