@@ -782,7 +782,7 @@ func (r *AWSMachinePoolReconciler) getInfraCluster(ctx context.Context, log *log
 // isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew checks if the control plane is being upgraded, in which case we shouldn't update the launch template.
 func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx context.Context, machinePoolScope *scope.MachinePoolScope) (bool, error) {
 	if machinePoolScope.Cluster.Spec.ControlPlaneRef == nil {
-		return true, nil
+		return false, errors.New("ControlPlaneRef is nil")
 	}
 
 	if machinePoolScope.Cluster.Spec.ControlPlaneRef.Namespace == "" {
@@ -790,22 +790,22 @@ func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlan
 	}
 	controlPlane, err := external.Get(ctx, r.Client, machinePoolScope.Cluster.Spec.ControlPlaneRef)
 	if err != nil {
-		return true, errors.Wrapf(err, "failed to get ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+		return false, errors.Wrapf(err, "failed to get ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
 	}
 
 	cpVersion, found, err := unstructured.NestedString(controlPlane.Object, "status", "version")
 	if !found || err != nil {
-		return true, errors.Wrapf(err, "failed to get version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+		return false, errors.Wrapf(err, "failed to get version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
 	}
 
 	controlPlaneCurrentK8sVersion, err := semver.ParseTolerant(cpVersion)
 	if err != nil {
-		return true, errors.Wrapf(err, "failed to parse version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
+		return false, errors.Wrapf(err, "failed to parse version of ControlPlane %s", machinePoolScope.Cluster.Spec.ControlPlaneRef.Name)
 	}
 
 	machinePoolDesiredK8sVersion, err := semver.ParseTolerant(*machinePoolScope.MachinePool.Spec.Template.Spec.Version)
 	if err != nil {
-		return true, errors.Wrap(err, "failed to parse version of MachinePool")
+		return false, errors.Wrap(err, "failed to parse version of MachinePool")
 	}
 
 	return controlPlaneCurrentK8sVersion.GE(machinePoolDesiredK8sVersion), nil
