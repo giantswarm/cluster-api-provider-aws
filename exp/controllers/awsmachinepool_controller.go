@@ -808,5 +808,8 @@ func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlan
 		return false, errors.Wrap(err, "failed to parse version of MachinePool")
 	}
 
+	machinePoolScope.Info("K8s version skew check: ControlPlane version", "version", controlPlaneCurrentK8sVersion.String())
+	machinePoolScope.Info("K8s version skew check: MachinePool desired version", "version", machinePoolDesiredK8sVersion.String())
+
 	return controlPlaneCurrentK8sVersion.GE(machinePoolDesiredK8sVersion), nil
 }
