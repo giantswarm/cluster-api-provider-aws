@@ -781,6 +781,12 @@ func (r *AWSMachinePoolReconciler) getInfraCluster(ctx context.Context, log *log
 
 // isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew checks if the control plane is being upgraded, in which case we shouldn't update the launch template.
 func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx context.Context, machinePoolScope *scope.MachinePoolScope) (bool, error) {
+	if machinePoolScope.AWSMachinePool.Labels["release.giantswarm.io/version"] != machinePoolScope.MachinePool.Labels["release.giantswarm.io/version"] || machinePoolScope.AWSMachinePool.Labels["release.giantswarm.io/version"] != machinePoolScope.Cluster.Labels["release.giantswarm.io/version"] {
+		// If the release version label differs, it means that not all objects have been applied yet.
+		machinePoolScope.Info("Not all objects are up-to-date, holding machine pool upgrade")
+		return false, nil
+	}
+
 	if machinePoolScope.Cluster.Spec.ControlPlaneRef == nil {
 		// Currently this returns true, while logically it should return false.
 		// This is to make sure that tests still pass. If we want to develop this patch further,
