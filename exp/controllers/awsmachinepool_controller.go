@@ -142,7 +142,8 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return reconcile.Result{}, nil
 	}
 
-	if machinePool.Labels["release.giantswarm.io/version"] != awsMachinePool.Labels["release.giantswarm.io/version"] {
+	// If the release version labels differ, it means Helm hasn't updated all objects yet.
+	if machinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
 		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with MachinePool")
 		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
 	}
@@ -155,7 +156,8 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return reconcile.Result{}, nil
 	}
 
-	if cluster.Labels["release.giantswarm.io/version"] != awsMachinePool.Labels["release.giantswarm.io/version"] {
+	// If the release version labels differ, it means Helm hasn't updated all objects yet.
+	if cluster.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
 		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with Cluster")
 		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
 	}
@@ -821,8 +823,8 @@ func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlan
 		return false, errors.Wrap(err, "failed to parse version of MachinePool")
 	}
 
-	machinePoolScope.Info("K8s version skew check: ControlPlane version", "version", controlPlaneCurrentK8sVersion.String())
-	machinePoolScope.Info("K8s version skew check: MachinePool desired version", "version", machinePoolDesiredK8sVersion.String())
+	machinePoolScope.Debug("K8s version skew check: ControlPlane version", "version", controlPlaneCurrentK8sVersion.String())
+	machinePoolScope.Debug("K8s version skew check: MachinePool desired version", "version", machinePoolDesiredK8sVersion.String())
 
 	return controlPlaneCurrentK8sVersion.GE(machinePoolDesiredK8sVersion), nil
 }
