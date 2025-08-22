@@ -141,6 +141,11 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		log.Info("MachinePool Controller has not yet set OwnerRef")
 		return reconcile.Result{}, nil
 	}
+
+	if machinePool.Labels["release.giantswarm.io/version"] != awsMachinePool.Labels["release.giantswarm.io/version"] {
+		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with MachinePool")
+		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
+	}
 	log = log.WithValues("machinePool", klog.KObj(machinePool))
 
 	// Fetch the Cluster.
@@ -150,6 +155,10 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return reconcile.Result{}, nil
 	}
 
+	if cluster.Labels["release.giantswarm.io/version"] != awsMachinePool.Labels["release.giantswarm.io/version"] {
+		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with Cluster")
+		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
+	}
 	log = log.WithValues("cluster", klog.KObj(cluster))
 
 	infraCluster, s3Scope, err := r.getInfraCluster(ctx, log, cluster, awsMachinePool)
@@ -781,12 +790,6 @@ func (r *AWSMachinePoolReconciler) getInfraCluster(ctx context.Context, log *log
 
 // isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew checks if the control plane is being upgraded, in which case we shouldn't update the launch template.
 func (r *AWSMachinePoolReconciler) isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx context.Context, machinePoolScope *scope.MachinePoolScope) (bool, error) {
-	if machinePoolScope.AWSMachinePool.Labels["release.giantswarm.io/version"] != machinePoolScope.MachinePool.Labels["release.giantswarm.io/version"] || machinePoolScope.AWSMachinePool.Labels["release.giantswarm.io/version"] != machinePoolScope.Cluster.Labels["release.giantswarm.io/version"] {
-		// If the release version label differs, it means that not all objects have been applied yet.
-		machinePoolScope.Info("Not all objects are up-to-date, holding machine pool upgrade")
-		return false, nil
-	}
-
 	if machinePoolScope.Cluster.Spec.ControlPlaneRef == nil {
 		// Currently this returns true, while logically it should return false.
 		// This is to make sure that tests still pass. If we want to develop this patch further,
