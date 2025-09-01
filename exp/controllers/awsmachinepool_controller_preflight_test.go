@@ -12,12 +12,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilfeature "k8s.io/component-base/featuregate/testing"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
 	expinfrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/exp/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	bootstrapv1 "sigs.k8s.io/cluster-api/bootstrap/kubeadm/api/v1beta1"
 	expclusterv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
-	"sigs.k8s.io/cluster-api/feature"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -56,7 +57,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 		Build()
 
 	t.Run("should run preflight checks if the feature gate is enabled", func(t *testing.T) {
-		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachineSetPreflightChecks, true)()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePoolPreflightChecks, true)()
 
 		tests := []struct {
 			name             string
@@ -68,10 +69,11 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 			wantErr          bool
 		}{
 			{
-				name:        "should pass if cluster has no control plane",
-				cluster:     &clusterv1.Cluster{},
-				machinePool: &expclusterv1.MachinePool{},
-				wantPass:    true,
+				name:             "should pass if cluster has no control plane",
+				cluster:          &clusterv1.Cluster{},
+				machinePool:      &expclusterv1.MachinePool{},
+				infraMachinePool: &expinfrav1.AWSMachinePool{},
+				wantPass:         true,
 			},
 			{
 				name: "should pass if the control plane version is not defined",
@@ -548,17 +550,18 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				r := &AWSMachinePoolReconciler{
 					Client: fakeClient,
 				}
-				machinePoolScope, err := scope.NewMachinePoolScope(scope.MachinePoolScopeParams{
+				machinePoolScope := &scope.MachinePoolScope{
 					Client:         fakeClient,
 					Cluster:        tt.cluster,
 					MachinePool:    tt.machinePool,
 					AWSMachinePool: tt.infraMachinePool,
+				}
+				clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
+					Client:     fakeClient,
+					Cluster:    tt.cluster,
+					AWSCluster: &v1beta2.AWSCluster{},
 				})
 				g.Expect(err).ToNot(HaveOccurred())
-				clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
-					Client:  fakeClient,
-					Cluster: tt.cluster,
-				})
 
 				result, err := r.runPreflightChecks(ctx, machinePoolScope, clusterScope)
 				if tt.wantErr {
@@ -572,7 +575,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 	})
 
 	t.Run("should not run the preflight checks if the feature gate is disabled", func(t *testing.T) {
-		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachineSetPreflightChecks, false)()
+		defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.MachinePoolPreflightChecks, false)()
 
 		g := NewWithT(t)
 		cluster := &clusterv1.Cluster{
@@ -603,16 +606,16 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 		infraMachinePool := &expinfrav1.AWSMachinePool{}
 		fakeClient := fake.NewClientBuilder().WithObjects(controlPlane).Build()
 		r := &AWSMachinePoolReconciler{Client: fakeClient}
-		machinePoolScope, err := scope.NewMachinePoolScope(scope.MachinePoolScopeParams{
+		machinePoolScope := &scope.MachinePoolScope{
 			Client:         fakeClient,
 			Cluster:        cluster,
 			MachinePool:    machinePool,
 			AWSMachinePool: infraMachinePool,
-		})
-		g.Expect(err).ToNot(HaveOccurred())
+		}
 		clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
-			Client:  fakeClient,
-			Cluster: cluster,
+			Client:     fakeClient,
+			Cluster:    cluster,
+			AWSCluster: &v1beta2.AWSCluster{},
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
