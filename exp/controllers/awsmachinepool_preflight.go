@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/cluster-api-provider-aws/v2/feature"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 )
@@ -12,7 +13,10 @@ import (
 // Heavily based on the MachineSet PreflightChecks in Cluster API.
 func (r *AWSMachinePoolReconciler) runPreflightChecks(ctx context.Context, machinePoolScope *scope.MachinePoolScope, clusterScope cloud.ClusterScoper) (bool, error) {
 	// log := ctrl.LoggerFrom(ctx)
-	//
+	// If the MachinePoolPreflightChecks feature gate is disabled return early.
+	if !feature.Gates.Enabled(feature.MachinePoolPreflightChecks) {
+		return true, nil
+	}
 
 	// Get the control plane object.
 	controlPlane, err := clusterScope.UnstructuredControlPlane()

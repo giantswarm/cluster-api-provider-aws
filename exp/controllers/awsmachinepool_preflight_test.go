@@ -196,7 +196,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass:     true,
 			},
 			{
-				name: "should pass if the machine set version is not defined",
+				name: "should pass if the machine pool version is not defined",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -215,7 +215,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "should error if the machine set version is invalid",
+				name: "should error if the machine pool version is invalid",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -241,7 +241,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantErr: true,
 			},
 			{
-				name: "kubernetes version preflight check: should fail if the machine set minor version is greater than control plane minor version",
+				name: "kubernetes version preflight check: should fail if the machine pool minor version is greater than control plane minor version",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -266,7 +266,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: false,
 			},
 			{
-				name: "kubernetes version preflight check: should fail if the machine set minor version is 4 older than control plane minor version for >= v1.28",
+				name: "kubernetes version preflight check: should fail if the machine pool minor version is 4 older than control plane minor version for >= v1.28",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -291,7 +291,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: false,
 			},
 			{
-				name: "kubernetes version preflight check: should fail if the machine set minor version is 3 older than control plane minor version for < v1.28",
+				name: "kubernetes version preflight check: should fail if the machine pool minor version is 3 older than control plane minor version for < v1.28",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -316,7 +316,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: false,
 			},
 			{
-				name: "kubernetes version preflight check: should pass if the machine set minor version is greater than control plane minor version but the preflight check is skipped",
+				name: "kubernetes version preflight check: should pass if the machine pool minor version is greater than control plane minor version but the preflight check is skipped",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -344,7 +344,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "kubernetes version preflight check: should pass if the machine set minor version and control plane version conform to kubernetes version skew policy >= v1.28",
+				name: "kubernetes version preflight check: should pass if the machine pool minor version and control plane version conform to kubernetes version skew policy >= v1.28",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -369,7 +369,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "kubernetes version preflight check: should pass if the machine set minor version and control plane version conform to kubernetes version skew policy < v1.28",
+				name: "kubernetes version preflight check: should pass if the machine pool minor version and control plane version conform to kubernetes version skew policy < v1.28",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -394,7 +394,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "kubeadm version preflight check: should fail if the machine set version is not equal (major+minor) to control plane version when using kubeadm bootstrap provider",
+				name: "kubeadm version preflight check: should fail if the machine pool version is not equal (major+minor) to control plane version when using kubeadm bootstrap provider",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -423,7 +423,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: false,
 			},
 			{
-				name: "kubeadm version preflight check: should pass if the machine set is not using kubeadm bootstrap provider",
+				name: "kubeadm version preflight check: should pass if the machine pool is not using kubeadm bootstrap provider",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -448,7 +448,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "kubeadm version preflight check: should pass if the machine set version and control plane version do not conform to kubeadm version skew policy but the preflight check is skipped",
+				name: "kubeadm version preflight check: should pass if the machine pool version and control plane version do not conform to kubeadm version skew policy but the preflight check is skipped",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
@@ -480,7 +480,7 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				wantPass: true,
 			},
 			{
-				name: "kubeadm version preflight check: should pass if the machine set version and control plane version conform to kubeadm version skew when using kubeadm bootstrap provider",
+				name: "kubeadm version preflight check: should pass if the machine pool version and control plane version conform to kubeadm version skew when using kubeadm bootstrap provider",
 				cluster: &clusterv1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: ns,
