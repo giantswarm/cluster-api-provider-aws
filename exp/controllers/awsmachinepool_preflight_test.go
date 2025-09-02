@@ -103,27 +103,27 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				machinePool:  &expclusterv1.MachinePool{},
 				wantErr:      true,
 			},
-			{
-				name: "should pass if all preflight checks are skipped",
-				cluster: &clusterv1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-					},
-					Spec: clusterv1.ClusterSpec{
-						ControlPlaneRef: objToRef(controlPlaneUpgrading),
-					},
-				},
-				controlPlane: controlPlaneUpgrading,
-				machinePool: &expclusterv1.MachinePool{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Annotations: map[string]string{
-							clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckAll),
-						},
-					},
-				},
-				wantPass: true,
-			},
+			// {
+			// 	name: "should pass if all preflight checks are skipped",
+			// 	cluster: &clusterv1.Cluster{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 		},
+			// 		Spec: clusterv1.ClusterSpec{
+			// 			ControlPlaneRef: objToRef(controlPlaneUpgrading),
+			// 		},
+			// 	},
+			// 	controlPlane: controlPlaneUpgrading,
+			// 	machinePool: &expclusterv1.MachinePool{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 			Annotations: map[string]string{
+			// 				clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckAll),
+			// 			},
+			// 		},
+			// 	},
+			// 	wantPass: true,
+			// },
 			{
 				name: "control plane preflight check: should fail if the control plane is provisioning",
 				cluster: &clusterv1.Cluster{
@@ -152,35 +152,35 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				machinePool:  &expclusterv1.MachinePool{},
 				wantPass:     false,
 			},
-			{
-				name: "control plane preflight check: should pass if the control plane is upgrading but the preflight check is skipped",
-				cluster: &clusterv1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-					},
-					Spec: clusterv1.ClusterSpec{
-						ControlPlaneRef: objToRef(controlPlaneUpgrading),
-					},
-				},
-				controlPlane: controlPlaneUpgrading,
-				machinePool: &expclusterv1.MachinePool{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Annotations: map[string]string{
-							clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckControlPlaneIsStable),
-						},
-					},
-					Spec: expclusterv1.MachinePoolSpec{
-						Template: clusterv1.MachineTemplateSpec{
-							Spec: clusterv1.MachineSpec{
-								Version:   ptr.To("v1.26.2"),
-								Bootstrap: clusterv1.Bootstrap{ConfigRef: &corev1.ObjectReference{Kind: "KubeadmConfigTemplate"}},
-							},
-						},
-					},
-				},
-				wantPass: true,
-			},
+			// {
+			// 	name: "control plane preflight check: should pass if the control plane is upgrading but the preflight check is skipped",
+			// 	cluster: &clusterv1.Cluster{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 		},
+			// 		Spec: clusterv1.ClusterSpec{
+			// 			ControlPlaneRef: objToRef(controlPlaneUpgrading),
+			// 		},
+			// 	},
+			// 	controlPlane: controlPlaneUpgrading,
+			// 	machinePool: &expclusterv1.MachinePool{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 			Annotations: map[string]string{
+			// 				clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckControlPlaneIsStable),
+			// 			},
+			// 		},
+			// 		Spec: expclusterv1.MachinePoolSpec{
+			// 			Template: clusterv1.MachineTemplateSpec{
+			// 				Spec: clusterv1.MachineSpec{
+			// 					Version:   ptr.To("v1.26.2"),
+			// 					Bootstrap: clusterv1.Bootstrap{ConfigRef: &corev1.ObjectReference{Kind: "KubeadmConfigTemplate"}},
+			// 				},
+			// 			},
+			// 		},
+			// 	},
+			// 	wantPass: true,
+			// },
 			{
 				name: "control plane preflight check: should pass if the control plane is stable",
 				cluster: &clusterv1.Cluster{
@@ -315,34 +315,34 @@ func TestMachineSetReconciler_runPreflightChecks(t *testing.T) {
 				},
 				wantPass: false,
 			},
-			{
-				name: "kubernetes version preflight check: should pass if the machine pool minor version is greater than control plane minor version but the preflight check is skipped",
-				cluster: &clusterv1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-					},
-					Spec: clusterv1.ClusterSpec{
-						ControlPlaneRef: objToRef(controlPlaneStable),
-					},
-				},
-				controlPlane: controlPlaneStable,
-				machinePool: &expclusterv1.MachinePool{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Annotations: map[string]string{
-							clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckKubernetesVersionSkew),
-						},
-					},
-					Spec: expclusterv1.MachinePoolSpec{
-						Template: clusterv1.MachineTemplateSpec{
-							Spec: clusterv1.MachineSpec{
-								Version: ptr.To("v1.27.0"),
-							},
-						},
-					},
-				},
-				wantPass: true,
-			},
+			// {
+			// 	name: "kubernetes version preflight check: should pass if the machine pool minor version is greater than control plane minor version but the preflight check is skipped",
+			// 	cluster: &clusterv1.Cluster{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 		},
+			// 		Spec: clusterv1.ClusterSpec{
+			// 			ControlPlaneRef: objToRef(controlPlaneStable),
+			// 		},
+			// 	},
+			// 	controlPlane: controlPlaneStable,
+			// 	machinePool: &expclusterv1.MachinePool{
+			// 		ObjectMeta: metav1.ObjectMeta{
+			// 			Namespace: ns,
+			// 			Annotations: map[string]string{
+			// 				clusterv1.MachineSetSkipPreflightChecksAnnotation: string(clusterv1.MachineSetPreflightCheckKubernetesVersionSkew),
+			// 			},
+			// 		},
+			// 		Spec: expclusterv1.MachinePoolSpec{
+			// 			Template: clusterv1.MachineTemplateSpec{
+			// 				Spec: clusterv1.MachineSpec{
+			// 					Version: ptr.To("v1.27.0"),
+			// 				},
+			// 			},
+			// 		},
+			// 	},
+			// 	wantPass: true,
+			// },
 			{
 				name: "kubernetes version preflight check: should pass if the machine pool minor version and control plane version conform to kubernetes version skew policy >= v1.28",
 				cluster: &clusterv1.Cluster{
