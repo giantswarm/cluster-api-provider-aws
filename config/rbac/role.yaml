@@ -134,6 +134,12 @@ rules:
 - apiGroups:
   - cluster.x-k8s.io
   resources:
+  - machines/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
   - machines/status
   verbs:
   - get
