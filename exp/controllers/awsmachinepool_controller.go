@@ -322,7 +322,7 @@ func (r *AWSMachinePoolReconciler) reconcileNormal(ctx context.Context, machineP
 
 		canProceed, err := r.isMachinePoolAllowedToUpgradeDueToControlPlaneVersionSkew(ctx, machinePoolScope)
 		if err != nil {
-			return true, nil
+			return canProceed, nil
 		}
 		if !canProceed {
 			machinePoolScope.Info("blocking instance refresh due to control plane k8s version skew")
