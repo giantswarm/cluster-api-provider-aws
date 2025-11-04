@@ -170,17 +170,17 @@ rules:
 - apiGroups:
   - controlplane.cluster.x-k8s.io
   resources:
-  - awsmanagedcontrolplanes/status
+  - awsmanagedcontrolplanes/finalizers
   verbs:
-  - get
-  - patch
+  - delete
   - update
 - apiGroups:
   - controlplane.cluster.x-k8s.io
   resources:
-  - awsmanagedcontrolplanes/finalizers
+  - awsmanagedcontrolplanes/status
   verbs:
-  - delete
+  - get
+  - patch
   - update
 - apiGroups:
   - controlplane.cluster.x-k8s.io
