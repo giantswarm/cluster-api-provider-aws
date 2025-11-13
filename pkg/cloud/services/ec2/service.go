@@ -23,6 +23,7 @@ import (
 
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-aws/v2/pkg/cloud/services/network"
+	"sigs.k8s.io/cluster-api/util/cache"
 )
 
 // Service holds a collection of interfaces.
@@ -35,14 +36,26 @@ type Service struct {
 
 	// SSMClient is used to look up the official EKS AMI ID
 	SSMClient ssmiface.SSMAPI
+
+	InstanceTypeArchitectureCache cache.Cache[InstanceTypeArchitectureCacheEntry]
+}
+
+type InstanceTypeArchitectureCacheEntry struct {
+	InstanceType string
+	Architecture string
+}
+
+func (e InstanceTypeArchitectureCacheEntry) Key() string {
+	return e.InstanceType
 }
 
 // NewService returns a new service given the ec2 api client.
 func NewService(clusterScope scope.EC2Scope) *Service {
 	return &Service{
-		scope:      clusterScope,
-		EC2Client:  scope.NewEC2Client(clusterScope, clusterScope, clusterScope, clusterScope.InfraCluster()),
-		SSMClient:  scope.NewSSMClient(clusterScope, clusterScope, clusterScope, clusterScope.InfraCluster()),
-		netService: network.NewService(clusterScope.(scope.NetworkScope)),
+		scope:                         clusterScope,
+		EC2Client:                     scope.NewEC2Client(clusterScope, clusterScope, clusterScope, clusterScope.InfraCluster()),
+		SSMClient:                     scope.NewSSMClient(clusterScope, clusterScope, clusterScope, clusterScope.InfraCluster()),
+		netService:                    network.NewService(clusterScope.(scope.NetworkScope)),
+		InstanceTypeArchitectureCache: cache.New[InstanceTypeArchitectureCacheEntry](),
 	}
 }

@@ -123,6 +123,11 @@ func GenerateAmiName(amiNameFormat, baseOS, kubernetesVersion string) (string, e
 
 // Determine architecture based on instance type.
 func (s *Service) pickArchitectureForInstanceType(instanceType string) (string, error) {
+	if entry, ok := s.InstanceTypeArchitectureCache.Has(instanceType); ok {
+		fmt.Printf("ANDI Chosen architecture from cache: %q\n", entry.Architecture)
+		return entry.Architecture, nil
+	}
+
 	descInstanceTypeInput := &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: []*string{&instanceType},
 	}
@@ -163,6 +168,11 @@ archCheck:
 	if architecture == "" {
 		return "", fmt.Errorf("unable to find preferred architecture for instance type %q", instanceType)
 	}
+
+	s.InstanceTypeArchitectureCache.Add(InstanceTypeArchitectureCacheEntry{
+		InstanceType: instanceType,
+		Architecture: architecture,
+	})
 
 	logger.Info("Chosen architecture", "architecture", architecture)
 
