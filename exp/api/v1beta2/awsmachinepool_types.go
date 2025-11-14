@@ -30,6 +30,10 @@ import (
 const (
 	// LaunchTemplateLatestVersion defines the launching of the latest version of the template.
 	LaunchTemplateLatestVersion = "$Latest"
+
+	// GiantSwarmReleaseLabel is the label key used to identify the Giant Swarm release version of a cluster.
+	// GIANT SWARM CUSTOMIZED!!!
+	GiantSwarmReleaseLabel = "release.giantswarm.io/version"
 )
 
 // AWSMachinePoolSpec defines the desired state of AWSMachinePool.
@@ -100,6 +104,14 @@ type AWSMachinePoolSpec struct {
 	// SuspendProcesses defines a list of processes to suspend for the given ASG. This is constantly reconciled.
 	// If a process is removed from this list it will automatically be resumed.
 	SuspendProcesses *SuspendProcessesTypes `json:"suspendProcesses,omitempty"`
+
+	// Ignition defined options related to the bootstrapping systems where Ignition is used.
+	// +optional
+	Ignition *infrav1.Ignition `json:"ignition,omitempty"`
+
+	// AWSLifecycleHooks specifies lifecycle hooks for the autoscaling group.
+	// +optional
+	AWSLifecycleHooks []AWSLifecycleHook `json:"lifecycleHooks,omitempty"`
 }
 
 // SuspendProcessesTypes contains user friendly auto-completable values for suspended process names.

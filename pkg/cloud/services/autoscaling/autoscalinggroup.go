@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
@@ -163,24 +164,17 @@ func (s *Service) CreateASG(machinePoolScope *scope.MachinePoolScope) (*expinfra
 		return nil, fmt.Errorf("getting subnets for ASG: %w", err)
 	}
 
-	input := &expinfrav1.AutoScalingGroup{
-		Name:                  machinePoolScope.Name(),
-		MaxSize:               machinePoolScope.AWSMachinePool.Spec.MaxSize,
-		MinSize:               machinePoolScope.AWSMachinePool.Spec.MinSize,
-		Subnets:               subnets,
-		DefaultCoolDown:       machinePoolScope.AWSMachinePool.Spec.DefaultCoolDown,
-		DefaultInstanceWarmup: machinePoolScope.AWSMachinePool.Spec.DefaultInstanceWarmup,
-		CapacityRebalance:     machinePoolScope.AWSMachinePool.Spec.CapacityRebalance,
-		MixedInstancesPolicy:  machinePoolScope.AWSMachinePool.Spec.MixedInstancesPolicy,
-	}
+	name := machinePoolScope.Name()
+	s.scope.Info("Creating ASG", "name", name)
 
 	// Default value of MachinePool replicas set by CAPI is 1.
 	mpReplicas := *machinePoolScope.MachinePool.Spec.Replicas
+	var desiredCapacity *int32
 
 	// Check that MachinePool replicas number is between the minimum and maximum size of the AWSMachinePool.
 	// Ignore the problem for externally managed clusters because MachinePool replicas will be updated to the right value automatically.
 	if mpReplicas >= machinePoolScope.AWSMachinePool.Spec.MinSize && mpReplicas <= machinePoolScope.AWSMachinePool.Spec.MaxSize {
-		input.DesiredCapacity = &mpReplicas
+		desiredCapacity = &mpReplicas
 	} else if !annotations.ReplicasManagedByExternalAutoscaler(machinePoolScope.MachinePool) {
 		return nil, fmt.Errorf("incorrect number of replicas %d in MachinePool %v", mpReplicas, machinePoolScope.MachinePool.Name)
 	}
@@ -194,62 +188,46 @@ func (s *Service) CreateASG(machinePoolScope *scope.MachinePoolScope) (*expinfra
 	// Set the cloud provider tag
 	additionalTags[infrav1.ClusterAWSCloudProviderTagKey(s.scope.KubernetesClusterName())] = string(infrav1.ResourceLifecycleOwned)
 
-	input.Tags = infrav1.Build(infrav1.BuildParams{
-		ClusterName: s.scope.KubernetesClusterName(),
-		Lifecycle:   infrav1.ResourceLifecycleOwned,
-		Name:        aws.String(machinePoolScope.Name()),
-		Role:        aws.String("node"),
-		Additional:  additionalTags,
-	})
-
-	s.scope.Info("Running instance")
-	if err := s.runPool(input, machinePoolScope.AWSMachinePool.Status.LaunchTemplateID); err != nil {
-		// Only record the failure event if the error is not related to failed dependencies.
-		// This is to avoid spamming failure events since the machine will be requeued by the actuator.
-		// if !awserrors.IsFailedDependency(errors.Cause(err)) {
-		// 	record.Warnf(scope.AWSMachinePool, "FailedCreate", "Failed to create instance: %v", err)
-		// }
-		s.scope.Error(err, "unable to create AutoScalingGroup")
-		return nil, err
-	}
-	record.Eventf(machinePoolScope.AWSMachinePool, "SuccessfulCreate", "Created new ASG: %s", machinePoolScope.Name())
-
-	return nil, nil
-}
-
-func (s *Service) runPool(i *expinfrav1.AutoScalingGroup, launchTemplateID string) error {
 	input := &autoscaling.CreateAutoScalingGroupInput{
-		AutoScalingGroupName:  aws.String(i.Name),
-		MaxSize:               aws.Int64(int64(i.MaxSize)),
-		MinSize:               aws.Int64(int64(i.MinSize)),
-		VPCZoneIdentifier:     aws.String(strings.Join(i.Subnets, ", ")),
-		DefaultCooldown:       aws.Int64(int64(i.DefaultCoolDown.Duration.Seconds())),
-		DefaultInstanceWarmup: aws.Int64(int64(i.DefaultInstanceWarmup.Duration.Seconds())),
-		CapacityRebalance:     aws.Bool(i.CapacityRebalance),
+		AutoScalingGroupName:           aws.String(name),
+		MaxSize:                        aws.Int64(int64(machinePoolScope.AWSMachinePool.Spec.MaxSize)),
+		MinSize:                        aws.Int64(int64(machinePoolScope.AWSMachinePool.Spec.MinSize)),
+		VPCZoneIdentifier:              aws.String(strings.Join(subnets, ", ")),
+		DefaultCooldown:                aws.Int64(int64(machinePoolScope.AWSMachinePool.Spec.DefaultCoolDown.Duration.Seconds())),
+		DefaultInstanceWarmup:          aws.Int64(int64(machinePoolScope.AWSMachinePool.Spec.DefaultInstanceWarmup.Duration.Seconds())),
+		CapacityRebalance:              aws.Bool(machinePoolScope.AWSMachinePool.Spec.CapacityRebalance),
+		LifecycleHookSpecificationList: getLifecycleHookSpecificationList(machinePoolScope.GetLifecycleHooks()),
 	}
 
-	if i.DesiredCapacity != nil {
-		input.DesiredCapacity = aws.Int64(int64(aws.Int32Value(i.DesiredCapacity)))
+	if desiredCapacity != nil {
+		input.DesiredCapacity = aws.Int64(int64(aws.Int32Value(desiredCapacity)))
 	}
 
-	if i.MixedInstancesPolicy != nil {
-		input.MixedInstancesPolicy = createSDKMixedInstancesPolicy(i.Name, i.MixedInstancesPolicy)
+	if machinePoolScope.AWSMachinePool.Spec.MixedInstancesPolicy != nil {
+		input.MixedInstancesPolicy = createSDKMixedInstancesPolicy(name, machinePoolScope.AWSMachinePool.Spec.MixedInstancesPolicy)
 	} else {
 		input.LaunchTemplate = &autoscaling.LaunchTemplateSpecification{
-			LaunchTemplateId: aws.String(launchTemplateID),
+			LaunchTemplateId: aws.String(machinePoolScope.AWSMachinePool.Status.LaunchTemplateID),
 			Version:          aws.String(expinfrav1.LaunchTemplateLatestVersion),
 		}
 	}
 
-	if i.Tags != nil {
-		input.Tags = BuildTagsFromMap(i.Name, i.Tags)
-	}
+	input.Tags = BuildTagsFromMap(name, infrav1.Build(infrav1.BuildParams{
+		ClusterName: s.scope.KubernetesClusterName(),
+		Lifecycle:   infrav1.ResourceLifecycleOwned,
+		Name:        aws.String(name),
+		Role:        aws.String("node"),
+		Additional:  additionalTags,
+	}))
 
 	if _, err := s.ASGClient.CreateAutoScalingGroupWithContext(context.TODO(), input); err != nil {
-		return errors.Wrap(err, "failed to create autoscaling group")
+		s.scope.Error(err, "unable to create AutoScalingGroup")
+		return nil, errors.Wrap(err, "failed to create autoscaling group")
 	}
 
-	return nil
+	record.Eventf(machinePoolScope.AWSMachinePool, "SuccessfulCreate", "Created new ASG: %s", machinePoolScope.Name())
+
+	return nil, nil
 }
 
 // DeleteASGAndWait will delete an ASG and wait until it is deleted.
@@ -323,30 +301,53 @@ func (s *Service) UpdateASG(machinePoolScope *scope.MachinePoolScope) error {
 	return nil
 }
 
-// CanStartASGInstanceRefresh will start an ASG instance with refresh.
-func (s *Service) CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (bool, error) {
+// CanStartASGInstanceRefresh checks if a new ASG instance refresh can currently be started, and returns the status if there is an existing, unfinished refresh.
+func (s *Service) CanStartASGInstanceRefresh(scope *scope.MachinePoolScope) (bool, *string, error) {
 	describeInput := &autoscaling.DescribeInstanceRefreshesInput{AutoScalingGroupName: aws.String(scope.Name())}
 	refreshes, err := s.ASGClient.DescribeInstanceRefreshesWithContext(context.TODO(), describeInput)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	hasUnfinishedRefresh := false
-	if err == nil && len(refreshes.InstanceRefreshes) != 0 {
+	var unfinishedRefreshStatus *string
+	if len(refreshes.InstanceRefreshes) != 0 {
 		for i := range refreshes.InstanceRefreshes {
 			if *refreshes.InstanceRefreshes[i].Status == autoscaling.InstanceRefreshStatusInProgress ||
 				*refreshes.InstanceRefreshes[i].Status == autoscaling.InstanceRefreshStatusPending ||
 				*refreshes.InstanceRefreshes[i].Status == autoscaling.InstanceRefreshStatusCancelling {
 				hasUnfinishedRefresh = true
+				unfinishedRefreshStatus = refreshes.InstanceRefreshes[i].Status
 			}
 		}
 	}
 	if hasUnfinishedRefresh {
-		return false, nil
+		return false, unfinishedRefreshStatus, nil
 	}
-	return true, nil
+	return true, nil, nil
 }
 
-// StartASGInstanceRefresh will start an ASG instance with refresh.
+// CancelASGInstanceRefresh cancels an ASG instance refresh.
+func (s *Service) CancelASGInstanceRefresh(scope *scope.MachinePoolScope) error {
+	input := &autoscaling.CancelInstanceRefreshInput{
+		AutoScalingGroupName: aws.String(scope.Name()),
+	}
+
+	if _, err := s.ASGClient.CancelInstanceRefreshWithContext(context.TODO(), input); err != nil {
+		var aerr awserr.Error
+		if errors.As(err, &aerr) && aerr.Code() == autoscaling.ErrCodeActiveInstanceRefreshNotFoundFault {
+			// Refresh isn't "in progress". It may have turned to cancelled status
+			// by now. So this is not an error for us because we may have called
+			// CancelInstanceRefresh multiple times and should be idempotent here.
+			return nil
+		}
+
+		return errors.Wrapf(err, "failed to cancel ASG instance refresh %q", scope.Name())
+	}
+
+	return nil
+}
+
+// StartASGInstanceRefresh will start an ASG instance refresh.
 func (s *Service) StartASGInstanceRefresh(scope *scope.MachinePoolScope) error {
 	strategy := ptr.To[string](autoscaling.RefreshStrategyRolling)
 	var minHealthyPercentage, maxHealthyPercentage, instanceWarmup *int64

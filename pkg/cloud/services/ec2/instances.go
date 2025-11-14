@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -748,6 +749,13 @@ func (s *Service) UpdateInstanceSecurityGroups(instanceID string, ids []string) 
 	s.scope.Debug("Found ENIs on instance", "number-of-enis", len(enis), "instance-id", instanceID)
 
 	for _, eni := range enis {
+		// Other components like cilium may add ENIs, and we don't want CAPA changing the security groups on those.
+		if !slices.ContainsFunc(eni.TagSet, func(t *ec2.Tag) bool {
+			return aws.StringValue(t.Key) == infrav1.ClusterTagKey(s.scope.Name())
+		}) {
+			s.scope.Debug("Skipping ENI without cluster tag", "eni-id", *eni.NetworkInterfaceId)
+			continue
+		}
 		if err := s.attachSecurityGroupsToNetworkInterface(ids, aws.StringValue(eni.NetworkInterfaceId)); err != nil {
 			return errors.Wrapf(err, "failed to modify network interfaces on instance %q", instanceID)
 		}
@@ -1154,6 +1162,10 @@ func getInstanceMarketOptionsRequest(i *infrav1.Instance) (*ec2.InstanceMarketOp
 		return nil, errors.New("can't create spot capacity-blocks, remove spot market request")
 	}
 
+	if (i.MarketType == infrav1.MarketTypeSpot || i.SpotMarketOptions != nil) && i.CapacityReservationID != nil {
+		return nil, errors.New("unable to generate marketOptions for spot instance, capacityReservationID is incompatible with marketType spot and spotMarketOptions")
+	}
+
 	// Infer MarketType if not explicitly set
 	if i.SpotMarketOptions != nil && i.MarketType == "" {
 		i.MarketType = infrav1.MarketTypeSpot
@@ -1161,6 +1173,10 @@ func getInstanceMarketOptionsRequest(i *infrav1.Instance) (*ec2.InstanceMarketOp
 
 	if i.MarketType == "" {
 		i.MarketType = infrav1.MarketTypeOnDemand
+	}
+
+	if i.MarketType == infrav1.MarketTypeSpot && i.SpotMarketOptions == nil {
+		i.SpotMarketOptions = &infrav1.SpotMarketOptions{}
 	}
 
 	switch i.MarketType {
