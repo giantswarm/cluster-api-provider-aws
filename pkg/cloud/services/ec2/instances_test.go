@@ -5717,7 +5717,7 @@ func TestCreateInstance(t *testing.T) {
 			machineScope.AWSMachine.Spec = *tc.machineConfig
 			tc.expect(ec2Mock.EXPECT())
 
-			s := NewService(clusterScope)
+			s := NewService(clusterScope).WithInstanceTypeArchitectureCache(nil)
 			s.EC2Client = ec2Mock
 
 			instance, err := s.CreateInstance(machineScope, data, "")
