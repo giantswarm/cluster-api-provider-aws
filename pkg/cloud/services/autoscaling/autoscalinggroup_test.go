@@ -1180,9 +1180,8 @@ func TestServiceCanStartASGInstanceRefresh(t *testing.T) {
 			if tt.canStart {
 				g.Expect(out).To(BeTrue())
 				return
-			} else {
-				g.Expect(unfinishedRefreshStatus).To(Equal(tt.wantUnfinishedRefreshStatus))
 			}
+			g.Expect(unfinishedRefreshStatus).To(Equal(tt.wantUnfinishedRefreshStatus))
 			g.Expect(out).To(BeFalse())
 		})
 	}
