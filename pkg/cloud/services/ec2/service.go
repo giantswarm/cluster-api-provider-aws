@@ -51,7 +51,7 @@ func NewService(clusterScope scope.EC2Scope) *Service {
 	}
 }
 
-// WithInstanceTypeArchitectureCache overrides the cache for InstanceTypeArchitectureCacheEntry items (nil disables caching)
+// WithInstanceTypeArchitectureCache overrides the cache for InstanceTypeArchitectureCacheEntry items (nil disables caching).
 func (s *Service) WithInstanceTypeArchitectureCache(instanceTypeArchitectureCache cache.InstanceTypeArchitectureCache) *Service {
 	s.InstanceTypeArchitectureCache = instanceTypeArchitectureCache
 	return s
