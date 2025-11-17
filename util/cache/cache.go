@@ -14,24 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package cache implements caching helper functions.
 package cache
 
 import (
 	capicache "sigs.k8s.io/cluster-api/util/cache"
 )
 
-// InstanceTypeArchitectureCacheEntry caches DescribeInstanceTypes results since they are not expected to change
+// InstanceTypeArchitectureCacheEntry caches DescribeInstanceTypes results since they are not expected to change.
 type InstanceTypeArchitectureCacheEntry struct {
 	InstanceType string
 	Architecture string
 }
 
-// Key returns the cache key of a InstanceTypeArchitectureCacheEntry
+// Key returns the cache key of a InstanceTypeArchitectureCacheEntry.
 func (e InstanceTypeArchitectureCacheEntry) Key() string {
 	return e.InstanceType
 }
 
-// InstanceTypeArchitectureCache stores cached DescribeInstanceTypes results since they are not expected to change
+// InstanceTypeArchitectureCache stores InstanceTypeArchitectureCacheEntry items.
 type InstanceTypeArchitectureCache = capicache.Cache[InstanceTypeArchitectureCacheEntry]
 
 var (
