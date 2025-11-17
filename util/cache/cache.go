@@ -36,7 +36,7 @@ func (e InstanceTypeArchitectureCacheEntry) Key() string {
 type InstanceTypeArchitectureCache = capicache.Cache[InstanceTypeArchitectureCacheEntry]
 
 var (
-	// InstanceTypeArchitectureCache is the singleton cache for InstanceTypeArchitectureCacheEntry items.
+	// InstanceTypeArchitectureCacheSingleton is the singleton cache for InstanceTypeArchitectureCacheEntry items.
 	// It should be used in all relevant controllers (and possibly disabled for unit tests).
 	InstanceTypeArchitectureCacheSingleton InstanceTypeArchitectureCache = capicache.New[InstanceTypeArchitectureCacheEntry]()
 )
