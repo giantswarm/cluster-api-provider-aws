@@ -1074,6 +1074,18 @@ func TestReconcileSecurityGroups(t *testing.T) {
 								},
 							},
 						},
+						// AWS Load Balancer Controller managed rule - should be ignored by CAPA
+						{
+							FromPort:   aws.Int64(8080),
+							IpProtocol: aws.String("tcp"),
+							ToPort:     aws.Int64(8080),
+							UserIdGroupPairs: []*ec2.UserIdGroupPair{
+								{
+									Description: aws.String("elbv2.k8s.aws/targetGroupBinding=shared"),
+									GroupId:     aws.String("sg-alb"),
+								},
+							},
+						},
 					},
 				}
 
@@ -1104,6 +1116,11 @@ func TestReconcileSecurityGroups(t *testing.T) {
 						},
 					},
 				})).Times(1)
+
+				// Ensure no revoke calls for sg-node to make sure we are filtering rules added by external controllers i.e., AWS LB Controller
+				m.RevokeSecurityGroupIngressWithContext(context.TODO(), gomock.Eq(&ec2.RevokeSecurityGroupIngressInput{
+					GroupId: aws.String("sg-node"),
+				})).Times(0)
 
 				m.AuthorizeSecurityGroupIngressWithContext(context.TODO(), gomock.AssignableToTypeOf(&ec2.AuthorizeSecurityGroupIngressInput{
 					GroupId: aws.String("sg-bastion"),
