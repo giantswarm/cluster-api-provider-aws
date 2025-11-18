@@ -52,6 +52,10 @@ const (
 
 	// IPProtocolICMPv6 is how EC2 represents the ICMPv6 protocol in ingress rules.
 	IPProtocolICMPv6 = "58"
+
+	// AWSLoadBalancerControllerTagKey is a marker in rule descriptions that indicates
+	// the rule is managed by the AWS Load Balancer Controller and should be ignored by CAPA.
+	AWSLoadBalancerControllerTagKey = "elbv2.k8s.aws/targetGroupBinding=shared"
 )
 
 // ReconcileSecurityGroups will reconcile security groups against the Service object.
@@ -158,7 +162,10 @@ func (s *Service) ReconcileSecurityGroups() error {
 			// skip rule reconciliation, as we expect the in-cluster cloud integration to manage them
 			continue
 		}
-		current := sg.IngressRules
+
+		// Filter out rules managed by external controllers (e.g., AWS Load Balancer Controller)
+		// These rules should not be revoked by CAPA as they are managed by other components.
+		current := filterIgnoredIngressRules(sg.IngressRules)
 
 		specRules, err := s.getSecurityGroupIngressRules(role)
 		if err != nil {
@@ -906,6 +913,19 @@ func ingressRulesFromSDKType(v *ec2.IpPermission) (res infrav1.IngressRules) {
 	}
 
 	return res
+}
+
+// filterIgnoredIngressRules removes ingress rules that should be ignored by CAPA
+// reconciliation. Rules with specific markers in their description indicate they
+// are managed by external controllers and should not be revoked.
+func filterIgnoredIngressRules(rules infrav1.IngressRules) infrav1.IngressRules {
+	filtered := make(infrav1.IngressRules, 0, len(rules))
+	for _, rule := range rules {
+		if !strings.Contains(rule.Description, AWSLoadBalancerControllerTagKey) {
+			filtered = append(filtered, rule)
+		}
+	}
+	return filtered
 }
 
 func ingressRuleFromSDKProtocol(v *ec2.IpPermission) infrav1.IngressRule {
