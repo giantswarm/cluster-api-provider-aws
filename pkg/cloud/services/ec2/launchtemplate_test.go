@@ -833,6 +833,22 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 			wantErr:               false,
 		},
 		{
+			name: "Should return false if no SSH key is set in the spec and AWS returns no key pair as well",
+			incoming: &expinfrav1.AWSLaunchTemplate{
+				SSHKeyName: aws.String(""), // explicit empty string
+			},
+			existing: &expinfrav1.AWSLaunchTemplate{
+				AdditionalSecurityGroups: []infrav1.AWSResourceReference{
+					{ID: aws.String("sg-111")},
+					{ID: aws.String("sg-222")},
+				},
+				SSHKeyName: nil,
+			},
+			want:                  false,
+			wantNeedsUpdateReason: "",
+			wantErr:               false,
+		},
+		{
 			name: "Should return true if incoming PrivateDNSName is different from existing PrivateDNSName",
 			incoming: &expinfrav1.AWSLaunchTemplate{
 				PrivateDNSName: &infrav1.PrivateDNSName{

@@ -1026,7 +1026,8 @@ func (s *Service) LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, inc
 		return true, "PrivateDNSName", nil
 	}
 
-	if !cmp.Equal(incoming.SSHKeyName, existing.SSHKeyName) {
+	// We treat nil and empty string the same (see `createLaunchTemplateData`)
+	if !cmp.Equal(ptr.Deref(incoming.SSHKeyName, ""), ptr.Deref(existing.SSHKeyName, "")) {
 		return true, "SSHKeyName", nil
 	}
 
