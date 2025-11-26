@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -1027,6 +1028,7 @@ func (s *Service) LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, inc
 		return true, "PrivateDNSName", nil
 	}
 
+	fmt.Printf("incoming.SSHKeyName=%q existing.SSHKeyName=%q\n", ptr.Deref(incoming.SSHKeyName, "<<nil>>"), ptr.Deref(existing.SSHKeyName, "<<nil>>"))
 	if !cmp.Equal(incoming.SSHKeyName, existing.SSHKeyName) {
 		return true, "SSHKeyName", nil
 	}
