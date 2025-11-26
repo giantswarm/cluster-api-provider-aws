@@ -1027,10 +1027,6 @@ func (s *Service) LaunchTemplateNeedsUpdate(scope scope.LaunchTemplateScope, inc
 		return true, "PrivateDNSName", nil
 	}
 
-	if !cmp.Equal(incoming.SSHKeyName, existing.SSHKeyName) {
-		return true, "SSHKeyName", nil
-	}
-
 	incomingIDs, err := s.GetAdditionalSecurityGroupsIDs(incoming.AdditionalSecurityGroups)
 	if err != nil {
 		return false, "", err
