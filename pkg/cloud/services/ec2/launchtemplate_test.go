@@ -586,12 +586,13 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	tests := []struct {
-		name     string
-		incoming *expinfrav1.AWSLaunchTemplate
-		existing *expinfrav1.AWSLaunchTemplate
-		expect   func(m *mocks.MockEC2APIMockRecorder)
-		want     bool
-		wantErr  bool
+		name                  string
+		incoming              *expinfrav1.AWSLaunchTemplate
+		existing              *expinfrav1.AWSLaunchTemplate
+		expect                func(m *mocks.MockEC2APIMockRecorder)
+		want                  bool
+		wantNeedsUpdateReason string
+		wantErr               bool
 	}{
 		{
 			name: "only core security groups, order shouldn't matter",
@@ -637,8 +638,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					{ID: aws.String("sg-999")},
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "AdditionalSecurityGroupsIDs",
+			wantErr:               false,
 		},
 		{
 			name: "new additional security group",
@@ -655,8 +657,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					{ID: aws.String("sg-999")},
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "AdditionalSecurityGroupsIDs",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming IamInstanceProfile is not same as existing IamInstanceProfile",
@@ -670,7 +673,8 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				IamInstanceProfile: "some-other-profile",
 			},
-			want: true,
+			want:                  true,
+			wantNeedsUpdateReason: "IamInstanceProfile",
 		},
 		{
 			name: "Should return true if incoming InstanceType is not same as existing InstanceType",
@@ -684,7 +688,8 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				InstanceType: "t3.large",
 			},
-			want: true,
+			want:                  true,
+			wantNeedsUpdateReason: "InstanceType",
 		},
 		{
 			name: "new additional security group with filters",
@@ -704,8 +709,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				m.DescribeSecurityGroups(context.TODO(), gomock.Eq(&ec2.DescribeSecurityGroupsInput{Filters: []ec2types.Filter{{Name: aws.String("sg-2"), Values: []string{"test-2"}}}})).
 					Return(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{{GroupId: aws.String("sg-2")}}}, nil)
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "AdditionalSecurityGroupsIDs",
+			wantErr:               false,
 		},
 		{
 			name: "new launch template instance metadata options, requiring IMDSv2",
@@ -721,8 +727,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					{ID: aws.String("sg-222")},
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "InstanceMetadataOptions",
+			wantErr:               false,
 		},
 		{
 			name:     "new launch template instance metadata options, removing IMDSv2 requirement",
@@ -733,8 +740,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					HTTPTokens:              infrav1.HTTPTokensStateRequired,
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "InstanceMetadataOptions",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming SpotMarketOptions is different from existing SpotMarketOptions",
@@ -752,8 +760,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					MaxPrice: aws.String("0.05"),
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "SpotMarketOptions",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming adds SpotMarketOptions and existing has none",
@@ -769,8 +778,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				SpotMarketOptions: nil,
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "SpotMarketOptions",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming removes SpotMarketOptions and existing has some",
@@ -786,8 +796,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					MaxPrice: aws.String("0.05"),
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "SpotMarketOptions",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if SSH key names are different",
@@ -801,8 +812,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				SSHKeyName: aws.String("old-key"),
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "SSHKeyName",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if one has SSH key name and other doesn't",
@@ -816,8 +828,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				SSHKeyName: nil,
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "SSHKeyName",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming PrivateDNSName is different from existing PrivateDNSName",
@@ -839,8 +852,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					HostnameType:                    aws.String("ip-name"),
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "PrivateDNSName",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming adds PrivateDNSName and existing has none",
@@ -858,8 +872,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				PrivateDNSName: nil,
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "PrivateDNSName",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if incoming removes PrivateDNSName and existing has some",
@@ -877,8 +892,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 					HostnameType:                    aws.String("resource-name"),
 				},
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "PrivateDNSName",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if capacity reservation IDs are different",
@@ -892,8 +908,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				CapacityReservationID: aws.String("old-reservation"),
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "CapacityReservationID",
+			wantErr:               false,
 		},
 		{
 			name: "Should return true if one has capacity reservation ID and other doesn't",
@@ -907,8 +924,9 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				},
 				CapacityReservationID: nil,
 			},
-			want:    true,
-			wantErr: false,
+			want:                  true,
+			wantNeedsUpdateReason: "CapacityReservationID",
+			wantErr:               false,
 		},
 	}
 	for _, tt := range tests {
@@ -946,13 +964,14 @@ func TestServiceLaunchTemplateNeedsUpdate(t *testing.T) {
 				tt.expect(mockEC2Client.EXPECT())
 			}
 
-			got, err := s.LaunchTemplateNeedsUpdate(machinePoolScope, tt.incoming, tt.existing)
+			got, gotNeedsUpdateReason, err := s.LaunchTemplateNeedsUpdate(machinePoolScope, tt.incoming, tt.existing)
 			if tt.wantErr {
 				g.Expect(err).To(HaveOccurred())
 				return
 			}
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(got).Should(Equal(tt.want))
+			g.Expect(gotNeedsUpdateReason).Should(Equal(tt.wantNeedsUpdateReason))
 		})
 	}
 }
