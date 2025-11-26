@@ -145,6 +145,7 @@ func (r *AWSMachineReconciler) getObjectStoreService(scope scope.S3Scope) servic
 // +kubebuilder:rbac:groups=controlplane.cluster.x-k8s.io,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=awsmachines,verbs=create;get;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=awsmachines/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=awsmachinepools/finalizers,verbs=update
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
@@ -303,9 +304,11 @@ func (r *AWSMachineReconciler) reconcileDelete(ctx context.Context, machineScope
 
 	ec2Service := r.getEC2Service(ec2Scope)
 
-	if err := r.deleteBootstrapData(ctx, machineScope, clusterScope, objectStoreScope); err != nil {
-		machineScope.Error(err, "unable to delete machine")
-		return ctrl.Result{}, err
+	if !machineScope.IsMachinePoolMachine() {
+		if err := r.deleteBootstrapData(ctx, machineScope, clusterScope, objectStoreScope); err != nil {
+			machineScope.Error(err, "unable to delete AWSMachine bootstrap data")
+			return ctrl.Result{}, err
+		}
 	}
 
 	instance, err := r.findInstance(machineScope, ec2Service)
