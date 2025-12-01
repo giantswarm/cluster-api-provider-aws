@@ -1,24 +1,26 @@
 version: 2.1
 orbs:
-  go: circleci/go@1.11.0
+  go: circleci/go@3.0.3
 
 jobs:
   test:
     resource_class: large
     executor:
       name: go/default
-      tag: "1.22.3"
+      tag: "1.23.10"
     steps:
       - checkout
-      - go/load-cache
+      - go/load-build-cache
       - go/mod-download
       - run:
           command: make setup-envtest
-      - go/save-cache
+      - go/save-build-cache
+      - go/save-mod-cache
       - run:
           command: make test
 
   build:
+    resource_class: large
     machine:
       image: "ubuntu-2204:2024.05.1"
     environment:
@@ -87,7 +89,12 @@ workflows:
       - build:
           context:
             - architect
+          # Trigger the job also on git tag
           filters:
             tags:
               only: /^v.*/
-      - test
+      - test:
+          # Trigger the job also on git tag
+          filters:
+            tags:
+              only: /^v.*/

@@ -4,7 +4,7 @@ This is Giant Swarm's fork. See the upstream [cluster-api-provider-aws README](h
 
 ## How to work with this repo
 
-Currently, we try to follow the upstream `release-X.Y` branch to always get the latest stable release and fixes, but not untested commits from `main`. Our only differences against upstream should be in this `README.md`, `.circleci/` and `.github/workflows/release.yaml`. Other changes should be opened as PR for the upstream project first.
+Currently, we try to follow the upstream `release-X.Y` branch to always get the latest stable release and fixes, but not untested commits from `main`. Our only differences against upstream should be in this `README.md`, `.circleci/`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/workflows/release.yaml` and deletion of other `.github/workflows/*` files not relevant to us. Other changes should be opened as PR for the upstream project first.
 
 We release cluster-api-provider-aws versions with [cluster-api-provider-aws-app](https://github.com/giantswarm/cluster-api-provider-aws-app/). To provide the YAML manifests, we use GitHub releases as the upstream project. The scripts in `cluster-api-provider-aws-app` convert them into the final manifests.
 
@@ -96,17 +96,17 @@ Please follow the development workflow:
 
 ### Keep fork customizations up to date
 
-Only `README.md`, `.circleci/` and `.github/workflows/release.yaml` should differ between upstream and our fork, so the diff of everything else should be empty, or at worst, contain hotfixes that are not in upstream yet:
+Only `README.md`, `.circleci/`, `.github/PULL_REQUEST_TEMPLATE.md` and `.github/workflows` should differ between upstream and our fork, so the diff of everything else should be empty, or at worst, contain hotfixes that are not in upstream yet:
 
 ```sh
 git fetch upstream
-git diff `# the upstream tag we merged recently` vX.Y.Z..origin/release-X.Y `# our release branch` -- ':!.circleci/' '!.github/workflows/release.yaml' ':!README.md'
+git diff `# the upstream tag we merged recently` vX.Y.Z..origin/release-X.Y `# our release branch` -- ':!.circleci/' ':!.github/PULL_REQUEST_TEMPLATE.md' ':!.github/workflows' ':!README.md'
 ```
 
 And we should also keep our `main` and `release-X.Y` branches in sync, so this diff should be empty:
 
 ```sh
-git diff main..release-X.Y -- .circleci/ .github/workflows/release.yaml README.md
+git diff main..release-X.Y -- .circleci/ .github/PULL_REQUEST_TEMPLATE.md .github/workflows README.md
 ```
 
 If this shows any output, please align the `main` branch with the release branches.
