@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	"k8s.io/utils/ptr"
 
@@ -805,6 +807,13 @@ func (s *Service) UpdateInstanceSecurityGroups(instanceID string, ids []string) 
 	s.scope.Debug("Found ENIs on instance", "number-of-enis", len(enis), "instance-id", instanceID)
 
 	for _, eni := range enis {
+		// Other components like cilium may add ENIs, and we don't want CAPA changing the security groups on those.
+		if !slices.ContainsFunc(eni.TagSet, func(t ec2types.Tag) bool {
+			return aws.ToString(t.Key) == infrav1.ClusterTagKey(s.scope.Name())
+		}) {
+			s.scope.Debug("Skipping ENI without cluster tag", "eni-id", *eni.NetworkInterfaceId)
+			continue
+		}
 		if err := s.attachSecurityGroupsToNetworkInterface(ids, aws.ToString(eni.NetworkInterfaceId)); err != nil {
 			return errors.Wrapf(err, "failed to modify network interfaces on instance %q", instanceID)
 		}
