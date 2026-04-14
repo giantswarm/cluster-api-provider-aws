@@ -109,29 +109,33 @@ func (s *Service) defaultGetResources(ctx context.Context) ([]*AWSResource, erro
 		},
 	}
 
-	awsOutput, err := s.resourceTaggingClient.GetResources(ctx, &awsInput)
+	resources := []*AWSResource{}
+	var errs []error
+	err := s.resourceTaggingClient.GetResourcesPages(ctx, &awsInput, func(awsOutput *rgapi.GetResourcesOutput) {
+		for i := range awsOutput.ResourceTagMappingList {
+			mapping := awsOutput.ResourceTagMappingList[i]
+			parsedArn, err := arn.Parse(*mapping.ResourceARN)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("parsing resource arn %s: %w", *mapping.ResourceARN, err))
+				continue
+			}
+
+			tags := map[string]string{}
+			for _, rgTag := range mapping.Tags {
+				tags[*rgTag.Key] = *rgTag.Value
+			}
+
+			resources = append(resources, &AWSResource{
+				ARN:  &parsedArn,
+				Tags: tags,
+			})
+		}
+	})
 	if err != nil {
 		return nil, fmt.Errorf("getting tagged resources: %w", err)
 	}
-
-	resources := []*AWSResource{}
-
-	for i := range awsOutput.ResourceTagMappingList {
-		mapping := awsOutput.ResourceTagMappingList[i]
-		parsedArn, err := arn.Parse(*mapping.ResourceARN)
-		if err != nil {
-			return nil, fmt.Errorf("parsing resource arn %s: %w", *mapping.ResourceARN, err)
-		}
-
-		tags := map[string]string{}
-		for _, rgTag := range mapping.Tags {
-			tags[*rgTag.Key] = *rgTag.Value
-		}
-
-		resources = append(resources, &AWSResource{
-			ARN:  &parsedArn,
-			Tags: tags,
-		})
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("getting tagged resources: %w", kerrors.NewAggregate(errs))
 	}
 
 	return resources, nil
