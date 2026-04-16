@@ -146,7 +146,9 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// If the release version labels differ, it means Helm hasn't updated all objects yet.
-	if machinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
+	// But it the machine pool is being deleted anyway, that does not matter.
+	if machinePool.DeletionTimestamp.IsZero() &&
+		machinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
 		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with MachinePool")
 		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
 	}
@@ -160,7 +162,9 @@ func (r *AWSMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// If the release version labels differ, it means Helm hasn't updated all objects yet.
-	if cluster.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
+	// But it the machine pool is being deleted anyway, that does not matter.
+	if awsMachinePool.DeletionTimestamp.IsZero() &&
+		cluster.Labels[expinfrav1.GiantSwarmReleaseLabel] != awsMachinePool.Labels[expinfrav1.GiantSwarmReleaseLabel] {
 		log.Info("Requeuing reconciliation in 5 seconds due to release version mismatch with Cluster")
 		return reconcile.Result{RequeueAfter: time.Duration(5) * time.Second}, nil
 	}
