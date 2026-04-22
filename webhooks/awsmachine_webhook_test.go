@@ -484,7 +484,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("host"),
 				},
 			},
@@ -495,7 +494,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("host"),
 					HostID:       ptr.To("h-09dcf61cb388b0149"),
 				},
@@ -507,7 +505,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("host"),
 					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 						Tags: map[string]string{"env": "test"},
@@ -531,7 +528,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("default"),
 					HostID:       ptr.To("h-09dcf61cb388b0149"),
 				},
@@ -543,7 +539,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("default"),
 					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 						Tags: map[string]string{"env": "test"},
@@ -566,7 +561,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostID:       ptr.To("h-09dcf61cb388b0149"),
 				},
 			},
@@ -577,7 +571,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 						Tags: map[string]string{"env": "test"},
 					},
@@ -590,7 +583,6 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("host"),
 					HostID:       aws.String("h-1234567890abcdef0"),
 					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
@@ -607,48 +599,12 @@ func TestAWSMachineCreate(t *testing.T) {
 			machine: &infrav1.AWSMachine{
 				Spec: infrav1.AWSMachineSpec{
 					InstanceType: "test",
-					Tenancy:      "host",
 					HostAffinity: ptr.To("default"),
 					HostID:       aws.String("h-1234567890abcdef0"),
 					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 						Tags: map[string]string{
 							"Environment": "test",
 						},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "hostID without tenancy=host is invalid",
-			machine: &infrav1.AWSMachine{
-				Spec: infrav1.AWSMachineSpec{
-					InstanceType: "test",
-					Tenancy:      "default",
-					HostID:       ptr.To("h-09dcf61cb388b0149"),
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "hostAffinity=host without tenancy=host is invalid",
-			machine: &infrav1.AWSMachine{
-				Spec: infrav1.AWSMachineSpec{
-					InstanceType: "test",
-					Tenancy:      "default",
-					HostAffinity: ptr.To("host"),
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "dynamicHostAllocation without tenancy=host is invalid",
-			machine: &infrav1.AWSMachine{
-				Spec: infrav1.AWSMachineSpec{
-					InstanceType: "test",
-					Tenancy:      "dedicated",
-					DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
-						Tags: map[string]string{"env": "test"},
 					},
 				},
 			},

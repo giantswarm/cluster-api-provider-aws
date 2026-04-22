@@ -90,7 +90,6 @@ func TestAWSMachineTemplateValidateCreate(t *testing.T) {
 					Template: infrav1.AWSMachineTemplateResource{
 						Spec: infrav1.AWSMachineSpec{
 							InstanceType: "test",
-							Tenancy:      "host",
 							HostID:       aws.String("h-1234567890abcdef0"),
 							DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 								Tags: map[string]string{
@@ -111,7 +110,6 @@ func TestAWSMachineTemplateValidateCreate(t *testing.T) {
 					Template: infrav1.AWSMachineTemplateResource{
 						Spec: infrav1.AWSMachineSpec{
 							InstanceType: "test",
-							Tenancy:      "host",
 							HostAffinity: ptr.To("host"),
 						},
 					},
@@ -127,7 +125,6 @@ func TestAWSMachineTemplateValidateCreate(t *testing.T) {
 					Template: infrav1.AWSMachineTemplateResource{
 						Spec: infrav1.AWSMachineSpec{
 							InstanceType: "test",
-							Tenancy:      "host",
 							HostAffinity: ptr.To("host"),
 							HostID:       ptr.To("h-09dcf61cb388b0149"),
 						},
@@ -144,7 +141,6 @@ func TestAWSMachineTemplateValidateCreate(t *testing.T) {
 					Template: infrav1.AWSMachineTemplateResource{
 						Spec: infrav1.AWSMachineSpec{
 							InstanceType: "test",
-							Tenancy:      "host",
 							HostAffinity: ptr.To("host"),
 							DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
 								Tags: map[string]string{"env": "test"},
@@ -169,57 +165,6 @@ func TestAWSMachineTemplateValidateCreate(t *testing.T) {
 				},
 			},
 			wantError: false,
-		},
-		{
-			name: "hostID without tenancy=host is invalid",
-			inputTemplate: &infrav1.AWSMachineTemplate{
-				ObjectMeta: metav1.ObjectMeta{},
-				Spec: infrav1.AWSMachineTemplateSpec{
-					Template: infrav1.AWSMachineTemplateResource{
-						Spec: infrav1.AWSMachineSpec{
-							InstanceType: "test",
-							Tenancy:      "default",
-							HostID:       ptr.To("h-09dcf61cb388b0149"),
-						},
-					},
-				},
-			},
-			wantError: true,
-		},
-		{
-			name: "hostAffinity=host without tenancy=host is invalid",
-			inputTemplate: &infrav1.AWSMachineTemplate{
-				ObjectMeta: metav1.ObjectMeta{},
-				Spec: infrav1.AWSMachineTemplateSpec{
-					Template: infrav1.AWSMachineTemplateResource{
-						Spec: infrav1.AWSMachineSpec{
-							InstanceType: "test",
-							Tenancy:      "default",
-							HostAffinity: ptr.To("host"),
-							HostID:       ptr.To("h-09dcf61cb388b0149"),
-						},
-					},
-				},
-			},
-			wantError: true,
-		},
-		{
-			name: "dynamicHostAllocation without tenancy=host is invalid",
-			inputTemplate: &infrav1.AWSMachineTemplate{
-				ObjectMeta: metav1.ObjectMeta{},
-				Spec: infrav1.AWSMachineTemplateSpec{
-					Template: infrav1.AWSMachineTemplateResource{
-						Spec: infrav1.AWSMachineSpec{
-							InstanceType: "test",
-							Tenancy:      "dedicated",
-							DynamicHostAllocation: &infrav1.DynamicHostAllocationSpec{
-								Tags: map[string]string{"env": "test"},
-							},
-						},
-					},
-				},
-			},
-			wantError: true,
 		},
 	}
 	for _, tt := range tests {
