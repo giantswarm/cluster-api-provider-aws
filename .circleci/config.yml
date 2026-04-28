@@ -75,7 +75,7 @@ jobs:
 
              SOURCE_REPOSITORY="${IMAGE_AZURE}:${CIRCLE_SHA1}"
              TARGET_REPOSITORY="${IMAGE_ALIYUN}}:${CIRCLE_SHA1}"
-             CMD="echo regctl image copy ${SOURCE_REPOSITORY} ${TARGET_REPOSITORY}"
+             CMD="regctl image copy ${SOURCE_REPOSITORY} ${TARGET_REPOSITORY}"
 
              SUCCESS=false
              for x in $(seq 1 10); do
