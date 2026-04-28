@@ -59,34 +59,52 @@ jobs:
               echo "Pushing tag $CIRCLE_TAG"
               make docker-push-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$REGISTRY_AZURE
             fi
+  sync:
+    resource_class: giantswarm/galaxy-runner
+    docker:
+      - image: giantswarm-registry.cn-shanghai.cr.aliyuncs.com/giantswarm/regclient-regctl:v0.11.3-alpine
+        entrypoint: ["/bin/sh"]
+    environment:
+      IMAGE_AZURE: gsoci.azurecr.io/giantswarm/cluster-api-aws-controller
+      IMAGE_ALIYUN: giantswarm-registry.cn-shanghai.cr.aliyuncs.com/giantswarm/cluster-api-aws-controller
+    steps:
+       - run:
+           name: Sync to Aliyun
+           command: |
+             regctl registry login "${IMAGE_ALIYUN%%/*}" -u $ALIYUN_USERNAME -p $ALIYUN_PASSWORD
 
-      - run:
-          name: Push to aliyun
-          command: |
-            for n in $(seq 1 5); do
-              (
-                set -eu
-                docker login --username $ALIYUN_USERNAME --password $ALIYUN_PASSWORD giantswarm-registry.cn-shanghai.cr.aliyuncs.com
+             SOURCE_REPOSITORY="${IMAGE_AZURE}:${CIRCLE_SHA1}"
+             TARGET_REPOSITORY="{IMAGE_ALIYUN}}:${CIRCLE_SHA1}"
+             CMD="echo regctl image copy ${SOURCE_REPOSITORY} ${TARGET_REPOSITORY}"
 
-                make docker-push-all ALL_ARCH="$ALL_ARCH" TAG=$CIRCLE_SHA1 REGISTRY=$REGISTRY_CHINA
-
-                if [ -n "${CIRCLE_TAG:-}" ]; then
-                  echo "Pushing tag $CIRCLE_TAG"
-                  make docker-push-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$REGISTRY_CHINA
-                fi
-              ) || { echo "Failed attempt ${n}"; sleep 30; continue; }
-
-              echo "Succeeded in attempt ${n}"
-              exit 0
-            done
-
-            exit 1
+             SUCCESS=false
+             for x in $(seq 1 10); do
+               echo "attempt: ${x}"
+               if sh -c "${CMD}"; then
+                 echo "Image is pushed to the registry."
+                 SUCCESS=true
+                 break
+               fi
+               echo "Waiting 5 seconds before the next attempt."
+               sleep 5
+             done
+             if [[ "${SUCCESS}" == "false" ]]; then
+               echo "Failed to sync the image"
+               exit 1
+             fi
 
 workflows:
   version: 2
   build_and_update:
     jobs:
       - build:
+          context:
+            - architect
+          # Trigger the job also on git tag
+          filters:
+            tags:
+              only: /^v.*/
+      - sync:
           context:
             - architect
           # Trigger the job also on git tag
