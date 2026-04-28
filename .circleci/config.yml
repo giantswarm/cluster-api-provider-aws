@@ -74,7 +74,7 @@ jobs:
              regctl registry login "${IMAGE_ALIYUN%%/*}" -u $ALIYUN_USERNAME -p $ALIYUN_PASSWORD
 
              SOURCE_REPOSITORY="${IMAGE_AZURE}:${CIRCLE_SHA1}"
-             TARGET_REPOSITORY="${IMAGE_ALIYUN}}:${CIRCLE_SHA1}"
+             TARGET_REPOSITORY="${IMAGE_ALIYUN}:${CIRCLE_SHA1}"
              CMD="regctl image copy ${SOURCE_REPOSITORY} ${TARGET_REPOSITORY}"
 
              SUCCESS=false
