@@ -85,7 +85,6 @@ func (w *AWSMachine) ValidateCreate(_ context.Context, obj runtime.Object) (admi
 	allErrs = append(allErrs, w.validateNetworkElasticIPPool(r)...)
 	allErrs = append(allErrs, w.validateInstanceMarketType(r)...)
 	allErrs = append(allErrs, w.validateCapacityReservation(r)...)
-	allErrs = append(allErrs, w.validateHostAllocation(r)...)
 
 	return nil, aggregateObjErrors(r.GroupVersionKind().GroupKind(), r.Name, allErrs)
 }
@@ -483,39 +482,6 @@ func (w *AWSMachine) validateAdditionalSecurityGroups(r *infrav1.AWSMachine) fie
 			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.additionalSecurityGroups"), "only one of ID or Filters may be specified, specifying both is forbidden"))
 		}
 	}
-	return allErrs
-}
-
-func (w *AWSMachine) validateHostAllocation(r *infrav1.AWSMachine) field.ErrorList {
-	var allErrs field.ErrorList
-
-	// Check if both hostID and dynamicHostAllocation are specified
-	hasHostID := r.Spec.HostID != nil && len(*r.Spec.HostID) > 0
-	hasDynamicHostAllocation := r.Spec.DynamicHostAllocation != nil
-
-	// If both hostID and dynamicHostAllocation are specified, return an error
-	if hasHostID && hasDynamicHostAllocation {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.hostID"), "hostID and dynamicHostAllocation are mutually exclusive"), field.Forbidden(field.NewPath("spec.dynamicHostAllocation"), "hostID and dynamicHostAllocation are mutually exclusive"))
-	}
-
-	// HostID, HostAffinity, and DynamicHostAllocation can only be set when Tenancy is "host"
-	if hasHostID && r.Spec.Tenancy != hostTenancy {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.hostID"), "hostID can only be set when tenancy is 'host'"))
-	}
-
-	if r.Spec.HostAffinity != nil && *r.Spec.HostAffinity == hostAffinity && r.Spec.Tenancy != hostTenancy {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.hostAffinity"), "hostAffinity can only be set to 'host' when tenancy is 'host'"))
-	}
-
-	if hasDynamicHostAllocation && r.Spec.Tenancy != hostTenancy {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.dynamicHostAllocation"), "dynamicHostAllocation can only be set when tenancy is 'host'"))
-	}
-
-	// DHA needs to have hostAffinity set to "host" to make sure it does not drift off its allocated host when the instance is restarted, otherwise there will be a host not in use still allocated.
-	if hasDynamicHostAllocation && (r.Spec.HostAffinity == nil || *r.Spec.HostAffinity != hostAffinity) {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.dynamicHostAllocation"), "dynamicHostAllocation can only be set when hostAffinity is 'host'"))
-	}
-
 	return allErrs
 }
 

@@ -173,32 +173,6 @@ func (w *AWSMachineTemplate) validateIgnitionAndCloudInit(r *infrav1.AWSMachineT
 	return allErrs
 }
 
-func (w *AWSMachineTemplate) validateHostAllocation(r *infrav1.AWSMachineTemplate) field.ErrorList {
-	var allErrs field.ErrorList
-
-	spec := r.Spec.Template.Spec
-
-	// Check if both hostID and dynamicHostAllocation are specified
-	hasHostID := spec.HostID != nil && len(*spec.HostID) > 0
-	hasDynamicHostAllocation := spec.DynamicHostAllocation != nil
-
-	if hasHostID && hasDynamicHostAllocation {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.template.spec.hostID"), "hostID and dynamicHostAllocation are mutually exclusive"), field.Forbidden(field.NewPath("spec.template.spec.dynamicHostAllocation"), "hostID and dynamicHostAllocation are mutually exclusive"))
-	}
-
-	// When hostAffinity is "host", either hostID or dynamicHostAllocation must be specified
-	if spec.HostAffinity != nil && *spec.HostAffinity == "host" && !hasHostID && !hasDynamicHostAllocation {
-		allErrs = append(allErrs, field.Required(field.NewPath("spec.template.spec.hostID"), "hostID or dynamicHostAllocation must be set when hostAffinity is 'host'"))
-	}
-
-	// DHA needs to have hostAffinity set to "host" to make sure it does not drift off its allocated host when the instance is restarted, otherwise there will be a host not in use still allocated.
-	if hasDynamicHostAllocation && (spec.HostAffinity == nil || *spec.HostAffinity != hostAffinity) {
-		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec.template.spec.dynamicHostAllocation"), "dynamicHostAllocation can only be set when hostAffinity is 'host'"))
-	}
-
-	return allErrs
-}
-
 func (w *AWSMachineTemplate) validateSSHKeyName(r *infrav1.AWSMachineTemplate) field.ErrorList {
 	return validateSSHKeyName(r.Spec.Template.Spec.SSHKeyName)
 }
@@ -232,7 +206,6 @@ func (w *AWSMachineTemplate) ValidateCreate(_ context.Context, raw runtime.Objec
 	allErrs = append(allErrs, w.validateSSHKeyName(obj)...)
 	allErrs = append(allErrs, w.validateAdditionalSecurityGroups(obj)...)
 	allErrs = append(allErrs, obj.Spec.Template.Spec.AdditionalTags.Validate()...)
-	allErrs = append(allErrs, w.validateHostAllocation(obj)...)
 
 	return nil, aggregateObjErrors(obj.GroupVersionKind().GroupKind(), obj.Name, allErrs)
 }
