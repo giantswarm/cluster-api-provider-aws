@@ -73,22 +73,21 @@ jobs:
            command: |
              regctl registry login "${IMAGE_ALIYUN%%/*}" -u $ALIYUN_USERNAME -p $ALIYUN_PASSWORD
 
-             SOURCE_REPOSITORY="${IMAGE_AZURE}:${CIRCLE_SHA1}"
-             TARGET_REPOSITORY="${IMAGE_ALIYUN}:${CIRCLE_SHA1}"
-             CMD="regctl image copy ${SOURCE_REPOSITORY} ${TARGET_REPOSITORY}"
+             source_repository="${IMAGE_AZURE}:${CIRCLE_SHA1}"
+             target_repository="${IMAGE_ALIYUN}:${CIRCLE_SHA1}"
 
-             SUCCESS=false
-             for x in $(seq 1 10); do
-               echo "attempt: ${x}"
-               if sh -c "${CMD}"; then
-                 echo "Image is pushed to the registry."
-                 SUCCESS=true
+             success=false
+             for n in $(seq 1 10); do
+               echo "Attempt ${n}"
+               if regctl image copy "${source_repository}" "${target_repository}"; then
+                 echo "Image successfully pushed to the registry"
+                 success=true
                  break
                fi
-               echo "Waiting 5 seconds before the next attempt."
+               echo "Waiting 5 seconds before the next attempt"
                sleep 5
              done
-             if [ "${SUCCESS}" = "false" ]; then
+             if [ "${success}" = "false" ]; then
                echo "Failed to sync the image"
                exit 1
              fi
