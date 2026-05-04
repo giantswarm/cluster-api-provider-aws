@@ -79,7 +79,7 @@ jobs:
                echo "Attempt ${n}"
 
                if [ "${success_tag}" = "false" ] && [ -n "${CIRCLE_TAG:-}" ] \
-                   && (set -x; regctl image copy "${IMAGE_AZURE}:${CIRCLE_SHA1}" "${IMAGE_ALIYUN}:${CIRCLE_SHA1}"); then
+                   && (set -x; regctl image copy "${IMAGE_AZURE}:${CIRCLE_TAG}" "${IMAGE_ALIYUN}:${CIRCLE_TAG}"); then
                  echo "Image successfully pushed to the registry (by tag)"
                  success_tag=true
                elif [ -z "${CIRCLE_TAG:-}" ]
