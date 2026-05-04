@@ -73,21 +73,34 @@ jobs:
            command: |
              regctl registry login "${IMAGE_ALIYUN%%/*}" -u $ALIYUN_USERNAME -p $ALIYUN_PASSWORD
 
-             source_repository="${IMAGE_AZURE}:${CIRCLE_SHA1}"
-             target_repository="${IMAGE_ALIYUN}:${CIRCLE_SHA1}"
-
-             success=false
+             success_commit=false
+             success_tag=false
              for n in $(seq 1 10); do
                echo "Attempt ${n}"
-               if regctl image copy "${source_repository}" "${target_repository}"; then
-                 echo "Image successfully pushed to the registry"
-                 success=true
+
+               if [ "${success_tag}" = "false" ] && [ -n "${CIRCLE_TAG:-}" ] \
+                   && (set -x; regctl image copy "${IMAGE_AZURE}:${CIRCLE_SHA1}" "${IMAGE_ALIYUN}:${CIRCLE_SHA1}"); then
+                 echo "Image successfully pushed to the registry (by tag)"
+                 success_tag=true
+               elif [ -z "${CIRCLE_TAG:-}" ]
+                 success_tag=true
+               fi
+
+               if [ "${success_commit}" = "false" ] \
+                   && (set -x; regctl image copy "${IMAGE_AZURE}:${CIRCLE_SHA1}" "${IMAGE_ALIYUN}:${CIRCLE_SHA1}"); then
+                 echo "Image successfully pushed to the registry (by commit hash)"
+                 success_commit=true
+               fi
+
+               if [ "${success_commit}" = "true" ] && [ "${success_tag}" = "true" ]; then
                  break
                fi
+
                echo "Waiting 5 seconds before the next attempt"
                sleep 5
              done
-             if [ "${success}" = "false" ]; then
+
+             if [ "${success_commit}" = "false" ] || [ "${success_tag}" = "false" ]; then
                echo "Failed to sync the image"
                exit 1
              fi
