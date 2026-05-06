@@ -20,7 +20,7 @@ jobs:
           command: make test
 
   build:
-    resource_class: large
+    resource_class: xlarge
     machine:
       image: "ubuntu-2404:2025.09.1"
     environment:
