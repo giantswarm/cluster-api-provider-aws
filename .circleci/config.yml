@@ -31,10 +31,6 @@ jobs:
       - checkout
 
       - run:
-          name: Compute jobs
-          command: echo "JOBS=$(echo "${ALL_ARCH}" | wc -w)" | tee --append "${BASH_ENV}"
-
-      - run:
           name: Ensure 'make generate' matches commit
           command: |
             make generate
@@ -44,11 +40,11 @@ jobs:
           name: Build the CAPA docker images
           command: |
             for registry in $REGISTRY_AZURE $REGISTRY_CHINA; do
-              make --jobs "${JOBS}" docker-build-all ALL_ARCH="$ALL_ARCH" TAG=$CIRCLE_SHA1 REGISTRY=$registry
+              make docker-build-all ALL_ARCH="$ALL_ARCH" TAG=$CIRCLE_SHA1 REGISTRY=$registry
 
               if [ -n "$CIRCLE_TAG" ]; then
                 echo "Building tag $CIRCLE_TAG"
-                make --jobs "${JOBS}" docker-build-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$registry
+                make docker-build-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$registry
               fi
             done
 
@@ -57,11 +53,11 @@ jobs:
           command: |
             docker login --username $ACR_GSOCI_USERNAME --password $ACR_GSOCI_PASSWORD "${REGISTRY_AZURE%/*}"
 
-            make --jobs "${JOBS}" docker-push-all ALL_ARCH="$ALL_ARCH" TAG=$CIRCLE_SHA1 REGISTRY=$REGISTRY_AZURE
+            make docker-push-all ALL_ARCH="$ALL_ARCH" TAG=$CIRCLE_SHA1 REGISTRY=$REGISTRY_AZURE
 
             if [ -n "$CIRCLE_TAG" ]; then
               echo "Pushing tag $CIRCLE_TAG"
-              make --jobs "${JOBS}" docker-push-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$REGISTRY_AZURE
+              make docker-push-all ALL_ARCH="$ALL_ARCH" TAG="$CIRCLE_TAG" REGISTRY=$REGISTRY_AZURE
             fi
   sync:
     resource_class: giantswarm/galaxy-runner
