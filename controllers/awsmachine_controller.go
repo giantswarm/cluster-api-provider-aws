@@ -265,28 +265,7 @@ func (r *AWSMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Ma
 			handler.EnqueueRequestsFromMapFunc(AWSClusterToAWSMachines),
 		).
 		WithEventFilter(predicates.ResourceHasFilterLabel(mgr.GetScheme(), log.GetLogger(), r.WatchFilterValue)).
-		WithEventFilter(
-			predicate.Funcs{
-				// Avoid reconciling if the event triggering the reconciliation is related to incremental status updates
-				// for AWSMachine resources only
-				UpdateFunc: func(e event.UpdateEvent) bool {
-					if e.ObjectOld.GetObjectKind().GroupVersionKind().Kind != "AWSMachine" {
-						return true
-					}
-
-					oldMachine := e.ObjectOld.(*infrav1.AWSMachine).DeepCopy()
-					newMachine := e.ObjectNew.(*infrav1.AWSMachine).DeepCopy()
-
-					oldMachine.Status = infrav1.AWSMachineStatus{}
-					newMachine.Status = infrav1.AWSMachineStatus{}
-
-					oldMachine.ObjectMeta.ResourceVersion = ""
-					newMachine.ObjectMeta.ResourceVersion = ""
-
-					return !cmp.Equal(oldMachine, newMachine)
-				},
-			},
-		).
+		WithEventFilter(ignoreAWSMachineStatusUpdatesPredicate()).
 		Build(r)
 	if err != nil {
 		return err
@@ -936,6 +915,43 @@ func getIgnitionVersion(scope *scope.MachineScope) string {
 		scope.AWSMachine.Spec.Ignition.Version = infrav1.DefaultIgnitionVersion
 	}
 	return scope.AWSMachine.Spec.Ignition.Version
+}
+
+// ignoreAWSMachineStatusUpdatesPredicate avoids reconciling if the event triggering the reconciliation is related to
+// incremental status updates for AWSMachine resources only.
+func ignoreAWSMachineStatusUpdatesPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			gvk := e.ObjectOld.GetObjectKind().GroupVersionKind()
+			fmt.Printf("ANDI 1 update predicate kind=%q group=%q version=%q\n", gvk.Kind, gvk.Group, gvk.Version)
+
+			// Objects delivered by the cache have no `TypeMeta`, so the kind can only be told from the Go type
+			oldAWSMachine, ok := e.ObjectOld.(*infrav1.AWSMachine)
+			if !ok {
+				return true
+			}
+			newAWSMachine, ok := e.ObjectNew.(*infrav1.AWSMachine)
+			if !ok {
+				return true
+			}
+
+			oldMachine := oldAWSMachine.DeepCopy()
+			newMachine := newAWSMachine.DeepCopy()
+
+			oldMachine.Status = infrav1.AWSMachineStatus{}
+			newMachine.Status = infrav1.AWSMachineStatus{}
+
+			oldMachine.ObjectMeta.ResourceVersion = ""
+			newMachine.ObjectMeta.ResourceVersion = ""
+
+			// A status write refreshes the timestamp of the writer's `managedFields` entry, so the metadata would
+			// otherwise always differ.
+			oldMachine.ObjectMeta.ManagedFields = nil
+			newMachine.ObjectMeta.ManagedFields = nil
+
+			return !cmp.Equal(oldMachine, newMachine)
+		},
+	}
 }
 
 func (r *AWSMachineReconciler) deleteBootstrapData(ctx context.Context, machineScope *scope.MachineScope, clusterScope cloud.ClusterScoper, objectStoreScope scope.S3Scope) error {

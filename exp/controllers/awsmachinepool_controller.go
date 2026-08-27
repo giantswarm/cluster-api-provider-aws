@@ -258,6 +258,9 @@ func (r *AWSMachinePoolReconciler) SetupWithManager(ctx context.Context, mgr ctr
 				// Avoid reconciling if the event triggering the reconciliation is related to incremental status updates
 				// for AWSMachinePool resources only
 				UpdateFunc: func(e event.UpdateEvent) bool {
+					gvk := e.ObjectOld.GetObjectKind().GroupVersionKind()
+					fmt.Printf("ANDI 2 update predicate kind=%q group=%q version=%q\n", gvk.Kind, gvk.Group, gvk.Version)
+
 					if e.ObjectOld.GetObjectKind().GroupVersionKind().Kind != "AWSMachinePool" {
 						return true
 					}

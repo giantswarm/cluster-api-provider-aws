@@ -41,6 +41,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-aws/v2/api/v1beta2"
@@ -3275,6 +3276,109 @@ func TestAWSMachineReconcilerReconcileDoesntAddSecurityGroupsToNonManagedNetwork
 	})
 
 	g.Expect(err).To(BeNil())
+}
+
+func TestIgnoreAWSMachineStatusUpdatesPredicate(t *testing.T) {
+	newAWSMachine := func() *infrav1.AWSMachine {
+		return &infrav1.AWSMachine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "aws-machine-1",
+				Namespace:       "default",
+				ResourceVersion: "1000",
+				Labels:          map[string]string{"cluster.x-k8s.io/cluster-name": "capi-test-1"},
+				ManagedFields: []metav1.ManagedFieldsEntry{
+					{
+						Manager:     "capa-manager",
+						Operation:   metav1.ManagedFieldsOperationUpdate,
+						Subresource: "status",
+						Time:        &metav1.Time{Time: time.Date(2026, 8, 25, 10, 0, 0, 0, time.UTC)},
+					},
+				},
+			},
+			Spec: infrav1.AWSMachineSpec{
+				InstanceType: "m5.large",
+				InstanceID:   aws.String("i-12345"),
+			},
+			Status: infrav1.AWSMachineStatus{
+				Ready:         true,
+				InstanceState: ptr.To(infrav1.InstanceStateRunning),
+			},
+		}
+	}
+
+	testCases := []struct {
+		name      string
+		objectOld client.Object
+		objectNew client.Object
+		expected  bool
+	}{
+		{
+			name:      "Should ignore an update which only changes the status",
+			objectOld: newAWSMachine(),
+			objectNew: func() *infrav1.AWSMachine {
+				awsMachine := newAWSMachine()
+				awsMachine.ResourceVersion = "1001"
+				awsMachine.Status.InstanceState = ptr.To(infrav1.InstanceStateStopped)
+				awsMachine.Status.Addresses = []clusterv1beta1.MachineAddress{{Type: clusterv1beta1.MachineInternalIP, Address: "10.0.0.1"}}
+				awsMachine.ManagedFields[0].Time = &metav1.Time{Time: time.Date(2026, 8, 25, 10, 5, 0, 0, time.UTC)}
+				return awsMachine
+			}(),
+			expected: false,
+		},
+		{
+			name:      "Should ignore a resync, which reports an unchanged object",
+			objectOld: newAWSMachine(),
+			objectNew: newAWSMachine(),
+			expected:  false,
+		},
+		{
+			name:      "Should reconcile a spec change",
+			objectOld: newAWSMachine(),
+			objectNew: func() *infrav1.AWSMachine {
+				awsMachine := newAWSMachine()
+				awsMachine.Spec.InstanceType = "m5.xlarge"
+				return awsMachine
+			}(),
+			expected: true,
+		},
+		{
+			name:      "Should reconcile a label change",
+			objectOld: newAWSMachine(),
+			objectNew: func() *infrav1.AWSMachine {
+				awsMachine := newAWSMachine()
+				awsMachine.Labels["new-label"] = "value"
+				return awsMachine
+			}(),
+			expected: true,
+		},
+		{
+			name:      "Should reconcile a deletion",
+			objectOld: newAWSMachine(),
+			objectNew: func() *infrav1.AWSMachine {
+				awsMachine := newAWSMachine()
+				awsMachine.DeletionTimestamp = &metav1.Time{Time: time.Date(2026, 8, 25, 10, 5, 0, 0, time.UTC)}
+				return awsMachine
+			}(),
+			expected: true,
+		},
+		{
+			name:      "Should reconcile an update of another kind",
+			objectOld: &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "capi-test-1", Namespace: "default", ResourceVersion: "1000"}},
+			objectNew: &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "capi-test-1", Namespace: "default", ResourceVersion: "1001"}},
+			expected:  true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
+
+			// Objects read from the cache have no `TypeMeta` set, which is what the predicate has to cope with.
+			g.Expect(tc.objectOld.GetObjectKind().GroupVersionKind().Kind).To(BeEmpty())
+
+			result := ignoreAWSMachineStatusUpdatesPredicate().Update(event.UpdateEvent{ObjectOld: tc.objectOld, ObjectNew: tc.objectNew})
+			g.Expect(result).To(Equal(tc.expected))
+		})
+	}
 }
 
 func createObject(g *WithT, obj client.Object, namespace string) {
