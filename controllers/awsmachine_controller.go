@@ -797,12 +797,13 @@ func (r *AWSMachineReconciler) ignitionUserData(scope *scope.MachineScope, objec
 	}
 }
 
+// getIgnitionVersion returns the Ignition version set on the AWSMachine, or the default one.
+// It must not default the field on the AWSMachine itself: spec.ignition can't be changed after
+// creation, so the webhook would reject every patch of the AWSMachine in this reconcile,
+// including the one persisting the ID of the instance that was just created.
 func getIgnitionVersion(scope *scope.MachineScope) string {
-	if scope.AWSMachine.Spec.Ignition == nil {
-		scope.AWSMachine.Spec.Ignition = &infrav1.Ignition{}
-	}
-	if scope.AWSMachine.Spec.Ignition.Version == "" {
-		scope.AWSMachine.Spec.Ignition.Version = infrav1.DefaultIgnitionVersion
+	if scope.AWSMachine.Spec.Ignition == nil || scope.AWSMachine.Spec.Ignition.Version == "" {
+		return infrav1.DefaultIgnitionVersion
 	}
 	return scope.AWSMachine.Spec.Ignition.Version
 }
