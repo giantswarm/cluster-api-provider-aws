@@ -38,7 +38,7 @@ You create the `release-X.Y` branch like this:
   # The branch needs not be pushed until you want to open a PR. The tag builds
   # the manifest and GitHub release which you need for deploying the app from the
   # `giantswarm/cluster-api-provider-aws-app` repo.
-  BASED_ON_VERSION=vX.Y.Z; [[ $BASED_ON_VERSION =~ ^v[0-9] ]] && git tag "${BASED_ON_VERSION}-gs-$(git rev-parse --short HEAD)" && git push origin "vX.Y.Z-gs-$(git rev-parse --short HEAD)"
+  BASED_ON_VERSION=vX.Y.Z; [[ $BASED_ON_VERSION =~ ^v[0-9] ]] && git tag "${BASED_ON_VERSION}-gs-$(git rev-parse --short HEAD)" && git push origin "${BASED_ON_VERSION}-gs-$(git rev-parse --short HEAD)"
   ```
 
 - Check that the [CircleCI pipeline](https://app.circleci.com/pipelines/github/giantswarm/cluster-api-provider-aws) succeeds for the desired Git tag in order to produce images. If the tag build fails, fix it.
